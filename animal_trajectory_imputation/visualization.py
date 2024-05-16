@@ -7,15 +7,14 @@ deer_id_list = [5094]
 model_list = ['csdi', 'interpolation', 'crawl']
 missing_percent_list = [20, 50, 80]
 
-
 for deer_id in deer_id_list:
     for model in model_list:
         for missing_percent in missing_percent_list:
 
             if model == 'crawl':
-                path = f'./results/{deer_id}_{missing_percent}_percent_missing/csdi/output.npz'
+                path = f'./results/{missing_percent}/{deer_id}/csdi/output.npz'
             else:
-                path = f'./results/{deer_id}_{missing_percent}_percent_missing/{model}/output.npz'
+                path = f'./results/{missing_percent}/{deer_id}/{model}/output.npz'
 
             dataset = AnimalMovement(mode='test', deer_id=deer_id)
             data = np.load(path)
@@ -112,7 +111,7 @@ for deer_id in deer_id_list:
             fig.tight_layout(pad=3.0)  # Adjust the pad parameter as needed
 
             # Save the plot
-            plt.savefig(f'./results/{deer_id}_{missing_percent}_percent_missing/{model}/prediction.png', dpi=300)
+            plt.savefig(f'./results/{missing_percent}/{deer_id}/{model}/prediction.png', dpi=300)
             plt.savefig(f'./figure/{model}_{missing_percent}.png', dpi=300)
 
             plt.close()
@@ -120,7 +119,7 @@ for deer_id in deer_id_list:
 ######################################### aug #########################################
 deer_id = 5094
 model = 'csdi'
-path = f'./results/{deer_id}_aug/{model}/output.npz'
+path = f'./results/aug/{deer_id}/{model}/output.npz'
 dataset = AnimalMovement(mode='imputation', deer_id=deer_id)
 data = np.load(path)
 y_hat = data['y_hat']
@@ -198,7 +197,7 @@ for i, start in enumerate(starts):
 fig.tight_layout(pad=3.0)  # Adjust the pad parameter as needed
 
 # Save the plot
-plt.savefig(f'./results/{deer_id}_aug/{model}/prediction.png', dpi=300)
+plt.savefig(f'./results/aug/{deer_id}/{model}/prediction.png', dpi=300)
 plt.savefig(f'./figure/4_hour_trajectory_imputation.png', dpi=300)
 
 
