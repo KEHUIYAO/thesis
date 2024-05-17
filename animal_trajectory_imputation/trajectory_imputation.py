@@ -450,11 +450,11 @@ def run_experiment(args):
         output['imputed_samples'] = y_hat_multiple_imputation
 
     # create a folder called results/deer_id and save the result
-    if not os.path.exists(f'./results/{args.deer_id}/{args.model_name}'):
-        os.makedirs(f'./results/{args.deer_id}/{args.model_name}')
+    if not os.path.exists(f'./results/aug/{args.deer_id}/{args.model_name}'):
+        os.makedirs(f'./results/aug/{args.deer_id}/{args.model_name}')
 
     # save it to a npz file
-    np.savez(f'./results/{args.deer_id}/{args.model_name}/output.npz', **output)
+    np.savez(f'./results/aug/{args.deer_id}/{args.model_name}/output.npz', **output)
 
 
     # plot the result and save it
@@ -506,7 +506,7 @@ def run_experiment(args):
             axes[k].plot(df.x, df.val, color='b', marker='o', linestyle='None')
 
         # save the plot
-        plt.savefig(f'./results/{args.deer_id}/{args.model_name}/prediction{i}.png')
+        plt.savefig(f'./results/aug/{args.deer_id}/{args.model_name}/prediction{i}.png')
 
         plt.close()
 
