@@ -92,6 +92,7 @@ class CsdiImputer(Imputer):
         mask = batch.input.mask | batch.eval_mask
         # observed_data, _, _ = self.normalize_observed_data(observed_data, mask)
         observed_data, _, _ = self.min_max_scale(observed_data, mask)
+        batch['observed_data'] = observed_data
 
         batch.input.x = observed_data
 
@@ -229,10 +230,7 @@ class CsdiImputer(Imputer):
                              unused: Optional[int] = 0) -> None:
         self.on_train_batch_start(batch, batch_idx, unused)
     def validation_step(self, batch, batch_idx):
-        observed_data = batch.y
-        mask = batch.input.mask | batch.eval_mask
-        # observed_data, _, _ = self.normalize_observed_data(observed_data, mask)
-        observed_data, _, _ = self.min_max_scale(observed_data, mask)
+        observed_data = batch['observed_data']
         eval_mask = batch.original_mask - batch.cond_mask
         B, L, K, C = observed_data.shape  # [batch, steps, nodes, channels]
         device = self.device
