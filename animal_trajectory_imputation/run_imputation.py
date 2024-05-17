@@ -600,16 +600,7 @@ if __name__ == '__main__':
                 try:
                     run_experiment(args)
                 except:
-                    pass
-                # run_experiment(args)
-
-                torch.cuda.empty_cache()
-
-                print('Running deer_id:', i, 'model:', model)
-
-                try:
-                    run_experiment(args)
-                except:
+                    print('Error when running deer_id:', i, 'model:', model)
                     pass
                 # run_experiment(args)
 
