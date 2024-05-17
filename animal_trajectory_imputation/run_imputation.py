@@ -53,11 +53,12 @@ def crps_loss(Y_samples, Y_true, mask):
 
 
 
-def parse_args(model_name='transformer', config_file='transformer.yaml', deer_id=5004):
+def parse_args(model_name='csdi', config_file='csdi.yaml', deer_id=5004, p_missing=0.2):
     # Argument parser
     ########################################
     parser = ArgParser()
     parser.add_argument('--deer-id', type=int, default=deer_id)
+    parser.add_argument('--p_missing', type=float, default=p_missing)
     # parser.add_argument("--model-name", type=str, default='csdi')
     # parser.add_argument("--model-name", type=str, default='interpolation')
     parser.add_argument("--model-name", type=str, default=model_name)
@@ -165,7 +166,7 @@ def run_experiment(args):
 
 
     model_cls, imputer_class = get_model_classes(args.model_name)
-    dataset = AnimalMovement(mode='test', deer_id=args.deer_id)
+    dataset = AnimalMovement(mode='test', deer_id=args.deer_id, p_missing=args.p_missing)
 
     # covariate dimension
     if 'covariates' in dataset.attributes:
@@ -346,7 +347,7 @@ def run_experiment(args):
         enable_multiple_imputation = False
 
 
-    dataset = AnimalMovement(mode='test', deer_id=args.deer_id)
+    dataset = AnimalMovement(mode='test', deer_id=args.deer_id, p_missing=args.p_missing)
     # scaler = StandardScaler(axis=(0, 1))
     # scaler = MinMaxScaler(axis=(0, 1), out_range=(-1, 1))
     # scaler.fit(dataset.y, dataset.training_mask)
@@ -486,11 +487,12 @@ def run_experiment(args):
 
 
     # create a folder called results/deer_id and save the result
-    if not os.path.exists(f'./results/{args.deer_id}/{args.model_name}'):
-        os.makedirs(f'./results/{args.deer_id}/{args.model_name}')
+    p_missing = str(int(args.p_missing * 100))
+    if not os.path.exists(f'./results/{p_missing}/{args.deer_id}/{args.model_name}'):
+        os.makedirs(f'./results/{p_missing}/{args.deer_id}/{args.model_name}')
 
     # write the result to a file, name the file as the deer id
-    with open(f'./results/{args.deer_id}/{args.model_name}/mae.txt', 'w') as f:
+    with open(f'./results/{p_missing}/{args.deer_id}/{args.model_name}/mae.txt', 'w') as f:
         f.write(f'Test MAE: {check_mae:.6f}\n')
         f.write(f'Test MRE: {check_mre:.6f}\n')
         if enable_multiple_imputation:
@@ -511,7 +513,7 @@ def run_experiment(args):
         output['imputed_samples'] = y_hat_multiple_imputation
 
     # save it to a npz file
-    np.savez(f'./results/{args.deer_id}/{args.model_name}/output.npz', **output)
+    np.savez(f'./results/{p_missing}/{args.deer_id}/{args.model_name}/output.npz', **output)
 
 
     # plot the result and save it
@@ -560,7 +562,7 @@ def run_experiment(args):
             axes[k].plot(df.x, df.val, color='b', marker='o', linestyle='None')
 
         # save the plot
-        plt.savefig(f'./results/{args.deer_id}/{args.model_name}/prediction{i}.png')
+        plt.savefig(f'./results/{p_missing}/{args.deer_id}/{args.model_name}/prediction{i}.png')
 
         plt.close()
 

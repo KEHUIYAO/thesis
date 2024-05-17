@@ -165,12 +165,12 @@ class AnimalMovement():
         plt.tight_layout()
 
 
-        # create a folder called result to save the figure
-        if not os.path.exists(f'results/{num}'):
-            os.makedirs(f'results/{num}')
-
-        # save fig to file, file name is the deer id
-        fig.savefig(f'results/{num}/original.png')
+        # # create a folder called result to save the figure
+        # if not os.path.exists(f'results/{num}'):
+        #     os.makedirs(f'results/{num}')
+        #
+        # # save fig to file, file name is the deer id
+        # fig.savefig(f'results/{num}/original.png')
 
         # save the dataframe to a csv file
         # if the folder is not existed, create it
