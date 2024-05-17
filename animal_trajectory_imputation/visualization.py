@@ -116,7 +116,7 @@ for deer_id in deer_id_list:
 
             # Save the plot
             plt.savefig(f'./results/{missing_percent}/{deer_id}/{model}/prediction.png', dpi=300)
-            plt.savefig(f'./figure/{model}_{missing_percent}.png', dpi=300)
+            plt.savefig(f'./figure/{missing_percent}_{deer_id}_{model}.png', dpi=300)
 
             plt.close()
 
@@ -202,7 +202,7 @@ fig.tight_layout(pad=3.0)  # Adjust the pad parameter as needed
 
 # Save the plot
 plt.savefig(f'./results/aug/{deer_id}/{model}/prediction.png', dpi=300)
-plt.savefig(f'./figure/4_hour_trajectory_imputation.png', dpi=300)
+plt.savefig(f'./figure/{deer_id}_4_hour_trajectory_imputation.png', dpi=300)
 
 
 
