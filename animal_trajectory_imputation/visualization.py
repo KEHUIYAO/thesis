@@ -7,6 +7,10 @@ deer_id_list = [5094]
 model_list = ['csdi', 'interpolation', 'crawl']
 missing_percent_list = [20, 50, 80]
 
+# if there is no figure folder, create one
+if not os.path.exists('./figure'):
+    os.makedirs('./figure')
+
 for deer_id in deer_id_list:
     for model in model_list:
         for missing_percent in missing_percent_list:
