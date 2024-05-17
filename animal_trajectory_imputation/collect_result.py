@@ -26,7 +26,7 @@ for p_missing in p_missing_list:
 
         # enter the interpolation folder, and read mae.txt file
         try:
-            with open(f'./results/{deer_id}/interpolation/mae.txt') as f:
+            with open(f'./results/{p_missing}/{deer_id}/interpolation/mae.txt') as f:
                 text = f.read()
 
                 # extract the mae value from 'Test MAE: 123.456\nTest MRE' using regex
@@ -38,7 +38,7 @@ for p_missing in p_missing_list:
             #     mae = f.read()
             #     print(mae)
 
-            with open(f'./results/{deer_id}/csdi/mae.txt') as f:
+            with open(f'./results/{p_missing}/{deer_id}/csdi/mae.txt') as f:
                 text = f.read()
                 # extract the mae value from 'Test MAE: 123.456\nTest MRE' using regex
                 specific_number = re.search(r'Test MAE: (\d+\.\d+|\d+)', text)
