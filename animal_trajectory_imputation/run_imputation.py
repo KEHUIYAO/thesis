@@ -582,24 +582,36 @@ if __name__ == '__main__':
 
 
     model_list = ['interpolation', 'csdi']
+    p_missing_list = [0.2, 0.5, 0.8]
 
     # deer_id_list = [5629, 5631, 5633, 5639, 5657]
     # deer_id_list = [5000, 5004, 5006, 5016,5022,5037, 5043]
 
     # deer_id_list = [5171]
 
+    for p_missing in p_missing_list:
+        print('Running p_missing:', p_missing)
+        for i in deer_id_list:
+            for model in model_list:
+                args = parse_args(model_name=model, config_file=f'{model}.yaml', deer_id=i, p_missing=p_missing)
 
-    for i in deer_id_list:
-        for model in model_list:
-            args = parse_args(model_name=model, config_file=f'{model}.yaml', deer_id=i)
+                print('Running deer_id:', i, 'model:', model)
 
-            print('Running deer_id:', i, 'model:', model)
+                try:
+                    run_experiment(args)
+                except:
+                    pass
+                # run_experiment(args)
 
-            try:
-                run_experiment(args)
-            except:
-                pass
-            # run_experiment(args)
+                torch.cuda.empty_cache()
 
-            torch.cuda.empty_cache()
+                print('Running deer_id:', i, 'model:', model)
+
+                try:
+                    run_experiment(args)
+                except:
+                    pass
+                # run_experiment(args)
+
+                torch.cuda.empty_cache()
 
