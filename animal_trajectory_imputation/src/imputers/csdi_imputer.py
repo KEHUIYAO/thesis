@@ -132,10 +132,6 @@ class CsdiImputer(Imputer):
 
         batch.input.mask = batch.cond_mask
 
-    # def on_validation_batch_start(self, batch, batch_idx: int,
-    #                          unused: Optional[int] = 0) -> None:
-    #     self.on_train_batch_start(batch, batch_idx, unused)
-
 
 
     def shared_step(self, batch, mask):
@@ -195,19 +191,49 @@ class CsdiImputer(Imputer):
     #     return loss
 
 
+    # def validation_step(self, batch, batch_idx):
+    #     # ########################################################
+    #     # batch.input.x = torch.zeros_like(batch.input.x)
+    #     # batch.input.mask = torch.zeros_like(batch.input.mask)
+    #     # ########################################################
+    #
+    #     observed_data = batch.y
+    #     mask = batch.input.mask | batch.eval_mask
+    #     # observed_data, _, _ = self.normalize_observed_data(observed_data, mask)
+    #     observed_data, _, _ = self.min_max_scale(observed_data, mask)
+    #     batch.input.x = observed_data.clone()
+    #     batch.input.x[batch.input.mask == 0] = 0
+    #
+    #     B, L, K, C = observed_data.shape  # [batch, steps, nodes, channels]
+    #     device = self.device
+    #     val_loss_sum = 0
+    #     for t in range(self.num_steps):
+    #         t = torch.tensor([t] * B)
+    #         current_alpha = self.alpha_torch[t].to(device)  # (B,1,1)
+    #         noise = torch.randn_like(observed_data)
+    #         noisy_data = (current_alpha ** 0.5) * observed_data + (1.0 - current_alpha) ** 0.5 * noise
+    #         batch['noise'] = noise
+    #         batch.input['noisy_data'] = noisy_data
+    #         batch.input['diffusion_step'] = t.to(device)
+    #         epsilon_hat, epsilon, val_loss = self.shared_step(batch, batch.eval_mask)
+    #         val_loss_sum += val_loss.detach()
+    #
+    #     val_loss_sum /= self.num_steps
+    #     # Logging
+    #     # self.val_metrics.update(epsilon_hat, epsilon, batch.eval_mask)
+    #     # self.log_metrics(self.val_metrics, batch_size=batch.batch_size)
+    #     # self.log_loss('val', val_loss, batch_size=batch.batch_size)
+    #     self.log('val_mse', val_loss_sum, on_step=False, on_epoch=True, prog_bar=True)
+    #     return val_loss_sum
+    def on_validation_batch_start(self, batch, batch_idx: int,
+                             unused: Optional[int] = 0) -> None:
+        self.on_train_batch_start(batch, batch_idx, unused)
     def validation_step(self, batch, batch_idx):
-        # ########################################################
-        # batch.input.x = torch.zeros_like(batch.input.x)
-        # batch.input.mask = torch.zeros_like(batch.input.mask)
-        # ########################################################
-
         observed_data = batch.y
         mask = batch.input.mask | batch.eval_mask
         # observed_data, _, _ = self.normalize_observed_data(observed_data, mask)
         observed_data, _, _ = self.min_max_scale(observed_data, mask)
-        batch.input.x = observed_data.clone()
-        batch.input.x[batch.input.mask == 0] = 0
-
+        eval_mask = batch.original_mask - batch.cond_mask
         B, L, K, C = observed_data.shape  # [batch, steps, nodes, channels]
         device = self.device
         val_loss_sum = 0
@@ -219,14 +245,10 @@ class CsdiImputer(Imputer):
             batch['noise'] = noise
             batch.input['noisy_data'] = noisy_data
             batch.input['diffusion_step'] = t.to(device)
-            epsilon_hat, epsilon, val_loss = self.shared_step(batch, batch.eval_mask)
+            epsilon_hat, epsilon, val_loss = self.shared_step(batch, eval_mask)
             val_loss_sum += val_loss.detach()
 
         val_loss_sum /= self.num_steps
-        # Logging
-        # self.val_metrics.update(epsilon_hat, epsilon, batch.eval_mask)
-        # self.log_metrics(self.val_metrics, batch_size=batch.batch_size)
-        # self.log_loss('val', val_loss, batch_size=batch.batch_size)
         self.log('val_mse', val_loss_sum, on_step=False, on_epoch=True, prog_bar=True)
         return val_loss_sum
 
