@@ -91,4 +91,4 @@ for p_missing in p_missing_list:
     print('Mean of CRPS:', df['crps'].sum() / len(df))
 
     # save the dataframe to a csv file
-    df.to_csv(f'./results/{p_missing}/summary.csv', index=False)
+    # df.to_csv(f'./results/{p_missing}/summary.csv', index=False)
