@@ -113,7 +113,7 @@ def generate_spatiotemporal_data(n_locations, n_steps, func, **kwargs):
     return np.stack([func(n_steps, **kwargs) for _ in range(n_locations)])
 
 
-def add_point_anomalies(data, dist, affected_time_proportion=0.2, affected_location_proportion=0.2, shock_magnitude=3):
+def add_point_anomalies(data, dist, affected_time_proportion=0.2, affected_location_proportion=0.1, shock_magnitude=3):
     """
     Introduces point anomalies into a spatiotemporal dataset.
 
@@ -141,29 +141,37 @@ def add_point_anomalies(data, dist, affected_time_proportion=0.2, affected_locat
     n_anomalous_locations = int(affected_location_proportion * n_locations)
     anomalies = np.zeros((n_locations, n_steps))
 
+    # for each location, find the index of the nearest location
+    sorted_locations = np.argsort(dist, axis=1)[:, 1:5]
+
     # Step 1: Select a subset of time points randomly
     anomalous_time_indices = np.random.choice(n_steps, n_anomalous_times, replace=False)
 
-    for t in anomalous_time_indices:
-        # Step 2: Select a subset of locations randomly
-        selected_location_indices = np.random.choice(n_locations, n_anomalous_locations, replace=False)
 
-        # Optionally add spatial correlation:
-        # Example: Select the closest N locations to a randomly chosen starting point
-        starting_location = np.random.choice(selected_location_indices)
-        sorted_locations = np.argsort(dist[starting_location])[:n_anomalous_locations]
+    for t in anomalous_time_indices:
+        # Step 2: Select 3 initial locations randomly
+        location_list = np.random.choice(n_locations, size=3)
+
+        while len(location_list) < n_anomalous_locations:
+            # randomly choose a location from the location_list
+            cur_loc = np.random.choice(location_list)
+            # select one of the nearest locations
+            nearest_location = np.random.choice(sorted_locations[cur_loc])
+            if nearest_location not in location_list:
+                location_list = np.append(location_list, nearest_location)
+
 
         # Step 3: Add shock
         shock = np.random.choice([-1, 1]) * shock_magnitude  # Random sign for the shock
-        anomalous_data[sorted_locations, t] += shock
+        anomalous_data[location_list, t] += shock
 
         # Collect anomaly details
-        anomalies[sorted_locations, t] = 1
+        anomalies[location_list, t] = 1
 
     return anomalous_data, anomalies
 
 
-def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected_location_proportion=0.2,
+def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected_location_proportion=0.1,
                              shock_magnitude=3):
     """
     Integrates collective anomalies into a spatiotemporal dataset, where the anomalies are temporally and spatially proximate, spanning contiguous time intervals.
@@ -196,6 +204,8 @@ def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected
     n_anomalous_times = int(affected_time_proportion * n_steps)
     n_anomalous_locations = int(affected_location_proportion * n_locations)
     anomalies = np.zeros((n_locations, n_steps))
+    # for each location, find the index of the nearest location
+    sorted_locations = np.argsort(dist, axis=1)[:, 1:5]
 
     # choose block size from 3 to 5
     block_size = np.random.randint(3, 6)
@@ -209,18 +219,24 @@ def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected
         contiguous_time_indices = np.arange(i * block_size, (i + 1) * block_size)
         # print(contiguous_time_indices)
 
-        # Select a starting location randomly
-        starting_location = np.random.choice(n_locations)
-        # Sort locations by proximity to the starting location
-        closest_locations = np.argsort(dist[starting_location])[:n_anomalous_locations]
+        # Step 2: Select 3 initial locations randomly
+        location_list = np.random.choice(n_locations, size=3)
+
+        while len(location_list) < n_anomalous_locations:
+            # randomly choose a location from the location_list
+            cur_loc = np.random.choice(location_list)
+            # select one of the nearest locations
+            nearest_location = np.random.choice(sorted_locations[cur_loc])
+            if nearest_location not in location_list:
+                location_list = np.append(location_list, nearest_location)
 
         # Randomly determine the sign of the shock (positive or negative)
         shock = np.random.choice([-1, 1]) * shock_magnitude
 
         for t in contiguous_time_indices:
-            anomalous_data[closest_locations, t] += shock
+            anomalous_data[location_list, t] += shock
             # Collect anomaly details
-            anomalies[closest_locations, t] = 1
+            anomalies[location_list, t] = 1
 
     return anomalous_data, anomalies
 
@@ -380,89 +396,6 @@ def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='
 
     return output_list
 
-
-# def sparsity_estimation_via_distance_matrix(p_values, distance_matrix, tau=0.1, h=5, kernel='gaussian'):
-#     """
-#     Estimate the sparsity level pis using a distance matrix.
-#
-#     Args:
-#         p_values (array_like): 1D array of p-values for each location.
-#         distance_matrix (array_like): n_location x n_location matrix of distances between locations.
-#         tau (float): threshold to apply screening
-#         h (float): bandwidth parameter for kernel density estimation
-#         kernel (str): Type of kernel to use ('gaussian' or other types could be implemented)
-#
-#     Returns:
-#         array_like: sparsity estimation for each location
-#     """
-#     n_locations = len(p_values)
-#     density_all = np.zeros(n_locations)
-#     density_significant = np.zeros(n_locations)
-#
-#     # Applying Gaussian Kernel
-#     if kernel == 'gaussian':
-#         gaussian_kernel = lambda x: np.exp(-(x ** 2) / 2)
-#         gaussian_kernel_with_h = lambda x, h: gaussian_kernel(x / h) / h
-#         vh = lambda d, h: gaussian_kernel_with_h(d, h) / gaussian_kernel_with_h(0, h)
-#
-#         # Calculate full KDE for all locations
-#         for i in range(n_locations):
-#             distances = distance_matrix[i]
-#             weights = vh(distances, h)
-#             density_all[i] = np.sum(weights)
-#
-#         # Calculate KDE for all locations based on distances to locations with p-values > tau
-#         significant_mask = p_values > tau
-#         significant_distances = distance_matrix[:, significant_mask]
-#
-#         for i in range(n_locations):
-#             distances = significant_distances[i]
-#             weights = vh(distances, h)
-#             density_significant[i] = np.sum(weights)
-#
-#     # Estimating sparsity levels
-#     pis = 1 - (density_significant / ((1 - tau) * density_all))
-#     pis = np.clip(pis, 1e-5, 1 - 1e-5)  # Stabilize the result
-#
-#     return pis
-
-
-
-# def sparsity_estimation_via_distance_matrix(p_values, distance_matrix, tau=0.1, h=5, kernel='gaussian'):
-#     """
-#     Estimate the sparsity level pis using a distance matrix.
-#
-#     Args:
-#         p_values (array_like): 1D array of p-values for each location.
-#         distance_matrix (array_like): n_location x n_location matrix of distances between locations.
-#         tau (float): threshold to apply screening
-#         h (float): bandwidth parameter for kernel density estimation
-#         kernel (str): Type of kernel to use ('gaussian' or other types could be implemented)
-#
-#     Returns:
-#         array_like: sparsity estimation for each location
-#     """
-#     gaussian_kernel = lambda x: np.exp(-(x ** 2) / 2)
-#     gaussian_kernel_with_h = lambda x, h: gaussian_kernel(x / h) / h
-#     vh = lambda d, h: gaussian_kernel_with_h(d, h) / gaussian_kernel_with_h(0, h)
-#
-#     # Calculate the kernel weights in a vectorized manner
-#     weights_all = vh(distance_matrix, h)
-#     density_all = np.sum(weights_all, axis=1)
-#
-#     # Boolean mask for significant locations
-#     significant_mask = p_values > tau
-#
-#     # Efficiently calculate significant densities
-#     significant_distances = distance_matrix[:, significant_mask]
-#     weights_significant = vh(significant_distances, h)
-#     density_significant = np.sum(weights_significant, axis=1)
-#
-#     # Estimate sparsity levels using vectorized division
-#     pis = 1 - (density_significant / ((1 - tau) * density_all))
-#     pis = np.clip(pis, 1e-5, 1 - 1e-5)  # Stabilize the result
-#
-#     return pis
 
 def sparsity_estimation_via_distance_matrix(p_values, dist=None, tau=0.1, h=5, kernel='gaussian'):
 
