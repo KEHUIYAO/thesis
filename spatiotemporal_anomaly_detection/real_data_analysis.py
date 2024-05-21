@@ -147,9 +147,6 @@ def locationwise_time_series_anomaly_detection(data, alpha=0.05):
             studentized_resid[i, j, 1:] = outlier['student_resid']
             unadj_pvalue[i, j, 1:] = outlier['unadj_p']
 
-            unadj_pvalue[studentized_resid<0] = unadj_pvalue[studentized_resid<0] / 2  # one-sided p-value
-            unadj_pvalue[studentized_resid>=0] = 1 - unadj_pvalue[studentized_resid>=0] / 2  # one-sided p-value
-
     return studentized_resid, unadj_pvalue
 
 
@@ -216,7 +213,7 @@ def crop_rasterfile_using_shapefile(rasterfile_path, crop_shapefile_path, path_o
         ff.write(lidar_chm_crop[0], 1)
 
 if __name__ == '__main__':
-    alpha = 0.1
+    alpha = 0.05
 
     rasterfile_list_path = ['./Yakutia_EVI_Product/Data/LAEA_y' +
                             str(year) + '_Maximum_Summertime_MODIS_EVI.tif' for year in range(2002, 2022)]
@@ -249,6 +246,7 @@ if __name__ == '__main__':
 
     studentized_resid, unadj_pvalue = locationwise_time_series_anomaly_detection(data)
 
+    unadj_pvalue = scipy.stats.t.cdf(studentized_resid, df=15)
 
     fig, ax = plt.subplots(4, 5)
     for i in range(4):
