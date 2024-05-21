@@ -610,7 +610,7 @@ def run_simulation(config):
                                                                                temporal_method, spatial_method, auc]
 
     # save the result
-    df_simulation_result.to_csv('simulation_result.csv', index=False)
+    df_simulation_result.to_csv('./results/simulation_result.csv', index=False)
 
     return df_simulation_result
 

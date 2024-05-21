@@ -259,7 +259,7 @@ if __name__ == '__main__':
             ax[i, j].set_yticks([])
 
     plt.show()
-    fig.savefig('figure/laws_{alpha}.png')
+    fig.savefig(f'figure/laws_{alpha}.png')
 
     # without Bonferroni correction
     res = np.zeros(unadj_pvalue.shape)
@@ -273,5 +273,5 @@ if __name__ == '__main__':
             ax[i, j].set_xticks([])
             ax[i, j].set_yticks([])
     plt.show()
-    fig.savefig('figure/no_laws_{alpha}.png')
+    fig.savefig(f'figure/no_laws_{alpha}.png')
 
