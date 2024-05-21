@@ -682,218 +682,20 @@ def run_simulation(config):
     return df_simulation_result
 
 
-def run_simulation_wildfire():
-    dist = None
-    grid_size = 200
-    n_steps = 20
-    setting_list = [1, 2, 3, 4]
-    temporal_methods = ['outlier_test']
-    spatial_methods = ['no laws', 'laws']
-    df_simulation_result = pd.DataFrame(
-        columns=['Setting', 'temporal method', 'spatial method',
-                 'auc'])
-
-
-    # setting 1
-    def create_setting_1():
-        state = np.random.RandomState(42)
-        # data generation
-        theta = np.zeros([grid_size, grid_size, n_steps])
-
-        # randomly choose t and spatially connected s to be anomaly
-        m = 10
-        anomalous_t_list = state.randint(1, n_steps, size=m)
-        anomalous_s_list = np.hstack([state.randint(grid_size, size=m)[:, np.newaxis], state.randint(grid_size, size=m)[:, np.newaxis]])
-
-        # assume rectangle regions would be affected
-        radius = 15
-        for i in range(m):
-            l = max(0, anomalous_s_list[i, 0] - radius)
-            r = min(grid_size, anomalous_s_list[i, 0] + radius)
-            u = min(grid_size, anomalous_s_list[i, 1] + radius)
-            b = max(0, anomalous_s_list[i, 1] - radius)
-            t = anomalous_t_list[i]
-            # print(l, r, b, u, t + 1)
-            theta[l:r, b:u, t] = 1
-
-        # generate observations
-        obs_mean = theta * 2
-        data = state.normal(loc=obs_mean, scale=1, size=[grid_size, grid_size, n_steps])
-
-        # reshape data, theta
-        anomalous_data = data.reshape(grid_size * grid_size, n_steps)
-        anomalies = theta.reshape(grid_size * grid_size, n_steps)
-
-        return anomalous_data, anomalies
-
-    # setting 2
-    def create_setting_2():
-        state = np.random.RandomState(42)
-        # data generation
-        theta = np.zeros([grid_size, grid_size, n_steps])
-
-        # randomly choose t and spatially connected s to be anomaly
-        m = 10
-        anomalous_t_list = state.randint(1, n_steps, size=m)
-        anomalous_s_list = np.hstack(
-            [state.randint(grid_size, size=m)[:, np.newaxis], state.randint(grid_size, size=m)[:, np.newaxis]])
-
-        # assume rectangle regions would be affected
-        radius = 15
-        for i in range(m):
-            l = max(0, anomalous_s_list[i, 0] - radius)
-            r = min(grid_size, anomalous_s_list[i, 0] + radius)
-            u = min(grid_size, anomalous_s_list[i, 1] + radius)
-            b = max(0, anomalous_s_list[i, 1] - radius)
-            t = anomalous_t_list[i]
-            # print(l, r, b, u, t + 1)
-            theta[l:r, b:u, t] = 1
-
-        # generate observations
-        obs_mean = theta * 1
-        data = state.normal(loc=obs_mean, scale=1, size=[grid_size, grid_size, n_steps])
-
-        # reshape data, theta
-        anomalous_data = data.reshape(grid_size * grid_size, n_steps)
-        anomalies = theta.reshape(grid_size * grid_size, n_steps)
-
-        return anomalous_data, anomalies
-
-    # setting 3
-    def create_setting_3():
-        state = np.random.RandomState(42)
-        # data generation
-        theta = np.zeros([grid_size, grid_size, n_steps])
-        obs_mean = np.zeros([grid_size, grid_size, n_steps])
-
-        # randomly choose t and spatially connected s to be anomaly
-        m = 10
-        anomalous_t_list = state.randint(1, n_steps, size=m)
-        anomalous_s_list = np.hstack(
-            [state.randint(grid_size, size=m)[:, np.newaxis], state.randint(grid_size, size=m)[:, np.newaxis]])
-
-        # assume rectangle regions would be affected
-        radius = 15
-        for i in range(m):
-            l = max(0, anomalous_s_list[i, 0] - radius)
-            r = min(grid_size, anomalous_s_list[i, 0] + radius)
-            u = min(grid_size, anomalous_s_list[i, 1] + radius)
-            b = max(0, anomalous_s_list[i, 1] - radius)
-            t = anomalous_t_list[i]
-            theta[l:r, b:u, t] = 1
-
-
-            if i == 0 or i == 1 or i == 2:
-                obs_mean[l:r, b:u, t] = 1
-            elif i == 3 or i == 4 or i == 5:
-                obs_mean[l:r, b:u, t] = 1.5
-            else:
-                obs_mean[l:r, b:u, t] = 2
-
-
-        data = state.normal(loc=obs_mean, scale=1, size=[grid_size, grid_size, n_steps])
-
-        # reshape data, theta
-        anomalous_data = data.reshape(grid_size * grid_size, n_steps)
-        anomalies = theta.reshape(grid_size * grid_size, n_steps)
-
-        return anomalous_data, anomalies
-
-    def create_setting_4():
-        state = np.random.RandomState(42)
-        # data generation
-        theta = np.zeros([grid_size, grid_size, n_steps])
-
-        # randomly choose t and spatially connected s to be anomaly
-        m = 10
-        anomalous_t_list = state.randint(1, n_steps, size=m)
-        anomalous_s_list = np.hstack(
-            [state.randint(grid_size, size=m)[:, np.newaxis], state.randint(grid_size, size=m)[:, np.newaxis]])
-
-        # assume rectangle regions would be affected
-        radius = 20
-        points_within_circle = []
-        for x in range(radius):
-            for y in range(radius):
-                if x ** 2 + y ** 2 <= radius ** 2:
-                    points_within_circle.append([x, y])
-
-        points_within_circle = points_within_circle + \
-                               [[-i[0], i[1]] for i in points_within_circle] + \
-                               [[-i[0], -i[1]] for i in points_within_circle] + \
-                               [[i[0], -i[1]] for i in points_within_circle]
-
-        points_within_circle = np.array(points_within_circle)
-
-        for i in range(m):
-            # print(anomalous_s_list[i, :], anomalous_t_list[i] + 1)
-            affected_region = anomalous_s_list[i, :] + points_within_circle
-            affected_region[affected_region < 0] = 0
-            affected_region[affected_region > grid_size - 1] = grid_size - 1
-            t = anomalous_t_list[i]
-            for j in range(affected_region.shape[0]):
-                theta[affected_region[j, 0], affected_region[j, 1], t] = 1
-
-        # generate observations
-        obs_mean = theta * 2
-        data = state.normal(loc=obs_mean, scale=1, size=[grid_size, grid_size, n_steps])
-
-        # reshape data, theta
-        anomalous_data = data.reshape(grid_size * grid_size, n_steps)
-        anomalies = theta.reshape(grid_size * grid_size, n_steps)
-
-        return anomalous_data, anomalies
-
-    def visualize_data(data, title_name):
-        n_locations = data.shape[0]
-        grid_size = int(np.sqrt(n_locations))
-        data = data.reshape(grid_size, grid_size, -1)
-        fig, ax = plt.subplots(4, 5)
-        # fig.suptitle(title_name)
-        for i in range(4):
-            for j in range(5):
-                ind = i * 5 + j
-                ax[i, j].imshow(data[..., ind], cmap='gray_r')
-                ax[i, j].axis('off')
-        plt.show()
-        fig.savefig(f'figure/{title_name}.png')
-
-
-    for setting in setting_list:
-        print('processing setting:', setting)
-        func = f'create_setting_{setting}'
-        anomalous_data, anomalies = eval(func)()
-        visualize_data(anomalous_data, f'setting{setting}')
-        for temporal_method in temporal_methods:
-            for spatial_method in spatial_methods:
-                if spatial_method == 'laws':
-                    res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=True)
-                    visualize_data(res[2], f'setting{setting}_laws')
-                else:
-                    res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=False)
-                    visualize_data(res[2], f'setting{setting}_no_laws')
-                auc = plot_roc_and_calculate_auc(anomalies, res)
-                df_simulation_result.loc[len(df_simulation_result)] = [setting,
-                                                                       temporal_method, spatial_method,
-                                                                        auc]
-    # df_simulation_result.to_csv('simulation_wildfire.csv', index=False)
-
-    return df_simulation_result
-
 
 if __name__ == '__main__':
-    # config = {
-    #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
-    #     'type_of_anomalies': ['point', 'collective'],
-    #     'temporal_methods': ['NN', 'outlier_test'],
-    #     'spatial_methods': ['laws', 'no laws'],
-    #     'n_locations': 400,
-    #     'grid_size': 20,
-    #     'n_steps': 20,
-    #     'affected_time_proportion': 0.2,
-    #     'affected_location_proportion': 0.2,
-    #     'shock_magnitude': [3, 2, 1]
-    # }
+    config = {
+        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+        'type_of_anomalies': ['point', 'collective'],
+        'temporal_methods': ['NN', 'outlier_test'],
+        'spatial_methods': ['laws', 'no laws'],
+        'n_locations': 400,
+        'grid_size': 20,
+        'n_steps': 20,
+        'affected_time_proportion': 0.2,
+        'affected_location_proportion': 0.2,
+        'shock_magnitude': [3, 2, 1]
+    }
 
     # config = {
     #     'type_of_time_series': ['iid_noise'],
@@ -908,5 +710,5 @@ if __name__ == '__main__':
     #     'shock_magnitude': [1]
     # }
 
-    # run_simulation(config)
-    run_simulation_wildfire()
+    run_simulation(config)
+
