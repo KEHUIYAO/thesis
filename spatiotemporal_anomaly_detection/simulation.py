@@ -212,7 +212,7 @@ def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected
     # divide n_steps by block_size
     n_blocks = n_steps // block_size
     # how many blocks to choose
-    n_blocks_to_choose = n_anomalous_times // block_size
+    n_blocks_to_choose = max(1, n_anomalous_times // block_size)
     # randomly choose n_blocks_to_choose blocks
     block_indices = np.random.choice(n_blocks, n_blocks_to_choose, replace=False)
     for i in block_indices:
@@ -610,7 +610,8 @@ def run_simulation(config):
                                                                                temporal_method, spatial_method, auc]
 
     # save the result
-    df_simulation_result.to_csv('./results/simulation_result.csv', index=False)
+    name = config['name']
+    df_simulation_result.to_csv(f'./results/{name}.csv', index=False)
 
     return df_simulation_result
 
@@ -618,6 +619,7 @@ def run_simulation(config):
 
 if __name__ == '__main__':
     config = {
+        'name': 'simulation_short_time_series',
         'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
         'type_of_anomalies': ['point', 'collective'],
         'temporal_methods': ['NN', 'outlier_test'],
@@ -625,23 +627,26 @@ if __name__ == '__main__':
         'n_locations': 400,
         'grid_size': 20,
         'n_steps': 20,
-        'affected_time_proportion': 0.2,
-        'affected_location_proportion': 0.2,
+        'affected_time_proportion': 0.1,
+        'affected_location_proportion': 0.1,
         'shock_magnitude': [3, 2, 1]
     }
 
-    # config = {
-    #     'type_of_time_series': ['iid_noise'],
-    #     'type_of_anomalies': ['point'],
-    #     'temporal_methods': ['outlier_test'],
-    #     'spatial_methods': ['laws'],
-    #     'n_locations': 10000,
-    #     'grid_size': 100,
-    #     'n_steps': 20,
-    #     'affected_time_proportion': 0.1,
-    #     'affected_location_proportion': 0.1,
-    #     'shock_magnitude': [1]
-    # }
+    run_simulation(config)
+
+    config = {
+        'name': 'simulation_long_time_series',
+        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+        'type_of_anomalies': ['point', 'collective'],
+        'temporal_methods': ['NN', 'outlier_test'],
+        'spatial_methods': ['laws', 'no_laws'],
+        'n_locations': 400,
+        'grid_size': 20,
+        'n_steps': 500,
+        'affected_time_proportion': 0.1,
+        'affected_location_proportion': 0.1,
+        'shock_magnitude': [3, 2, 1]
+    }
 
     run_simulation(config)
 

@@ -2,7 +2,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-data = pd.read_csv('simulation_result.csv')
+
+scenario = 'simulation_short_time_series'
+
+data = pd.read_csv(f'./results/{scenario}.csv')
 
 
 
@@ -68,6 +71,6 @@ for ax in g.axes.flat:
 plt.show()
 
 # save figure to simulation folder as 'simulation_result.png'
-g.savefig('figure/simulation_result.png', dpi=300)
+g.savefig(f'figure/{scenario}.png', dpi=300)
 
 
