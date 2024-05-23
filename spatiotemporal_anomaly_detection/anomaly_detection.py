@@ -13,14 +13,13 @@ from dlinear import Model, LightningModel, STData, Configs
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 import torch
+import scipy.stats
 
-def time_series_outlier_test(anomalous_data):
+def time_series_outlier_test(anomalous_data, one_sided='None'):
     n_locations = anomalous_data.shape[0]
     n_steps = anomalous_data.shape[1]
-
     studentized_resid = np.zeros([n_locations, n_steps])
     unadj_pvalue = np.ones([n_locations, n_steps])
-    bonf_pvalue = np.ones([n_locations, n_steps])
     for i in range(n_locations):
         df = pd.DataFrame({'Y': anomalous_data[i, 1:], 'X': anomalous_data[i, :-1], 't': np.arange(1, n_steps)})
         fit = ols('Y~X+t', data=df).fit()
@@ -28,7 +27,12 @@ def time_series_outlier_test(anomalous_data):
         # print(outlier)
         # starting from t=2
         studentized_resid[i, 1:] = outlier['student_resid']
-        unadj_pvalue[i, 1:] = outlier['unadj_p']
+        if one_sided == 'None':
+            unadj_pvalue[i, 1:] = outlier['unadj_p']
+        elif one_sided == 'left':
+            unadj_pvalue[i, 1:] = scipy.stats.t.cdf(studentized_resid[i, 1:], df=n_steps-5)
+        elif one_sided == 'right':
+            unadj_pvalue[i, 1:] = 1 - scipy.stats.t.cdf(studentized_resid[i, 1:], df=n_steps-5)
 
     return unadj_pvalue
 
