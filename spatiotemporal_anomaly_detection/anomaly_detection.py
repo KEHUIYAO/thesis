@@ -106,7 +106,7 @@ def time_series_outlier_test(anomalous_data, one_sided='None'):
 #     return p_values
 
 
-def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1):
+def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1, one_sided='None'):
     """
     Detects anomalies in a time series dataset using the DLinear model from NeuralForecast.
 
@@ -158,7 +158,13 @@ def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1):
     # p-value is the 1-F(x), where F(x) is the CDF of the normal distribution with mean and std
     p_values = np.ones((n_locations, n_steps))
     temp = norm.cdf(reconstruction_error, loc=mean, scale=std)
-    p_values[:, input_size:] = np.minimum(1 - temp, temp) * 2
+
+    if one_sided == 'None':
+        p_values[:, input_size:] = np.minimum(1 - temp, temp) * 2
+    elif one_sided == 'left':
+        p_values[:, input_size:] = temp
+    elif one_sided == 'right':
+        p_values[:, input_size:] = 1 - temp
 
     return p_values
 
