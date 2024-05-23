@@ -262,7 +262,7 @@ def sparsity_estimation_via_distance_matrix(p_values, dist=None, tau=0.1, h=5, k
 
 
 
-def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True, **kwargs):
+def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True,**kwargs):
     """
     Detects spatiotemporal anomalies in a dataset. This function first apply time series anomaly detection to obtain p-values. It then applies
     the LAWS procedure with a list of defined alpha thresholds to these p-values to identify anomalies.
@@ -290,9 +290,11 @@ def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True, *
 
     # time series anomaly detection
     if ts == 'NN':
-        p_values = time_series_anomaly_detection(anomalous_data, **kwargs)
+        temp = {key: kwargs[key] for key in ['horizon', 'input_size', 'one_sided'] if key in kwargs}
+        p_values = time_series_anomaly_detection(anomalous_data, **temp)
     elif ts == 'outlier_test':
-        p_values = time_series_outlier_test(anomalous_data)
+        temp = {key: kwargs[key] for key in ['one_sided'] if key in kwargs}
+        p_values = time_series_outlier_test(anomalous_data, **temp)
     else:
         raise ValueError("Invalid time series anomaly detection method. Choose 'NN' or 'outlier_test'.")
 
