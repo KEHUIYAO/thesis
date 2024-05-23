@@ -260,7 +260,6 @@ def time_series_outlier_test(anomalous_data):
         # starting from t=2
         studentized_resid[i, 1:] = outlier['student_resid']
         unadj_pvalue[i, 1:] = outlier['unadj_p']
-        bonf_pvalue[i, 1:] = outlier['unadj_p'] * n_steps  # bonferroni correction
 
     return unadj_pvalue
 
@@ -334,7 +333,7 @@ def time_series_outlier_test(anomalous_data):
 #     return p_values
 
 
-def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
+def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1):
     """
     Detects anomalies in a time series dataset using the DLinear model from NeuralForecast.
 
@@ -352,7 +351,7 @@ def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
     training_dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
     test_dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    configs = Configs(seq_len=input_size, pred_len=horizon, individual=False, enc_in=n_locations)
+    configs = Configs(seq_len=input_size, pred_len=horizon, individual=True, enc_in=n_locations)
     model = Model(configs)
     lightning_model = LightningModel(model)
 
@@ -695,15 +694,15 @@ if __name__ == '__main__':
     # }
     #
     # run_simulation(config)
-    #
+
     # config = {
     #     'name': 'simulation_long_time_series',
     #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
     #     'type_of_anomalies': ['point', 'collective'],
     #     'temporal_methods': ['NN', 'outlier_test'],
     #     'spatial_methods': ['laws', 'no_laws'],
-    #     'n_locations': 400,
-    #     'grid_size': 20,
+    #     'n_locations': 10000,
+    #     'grid_size': 100,
     #     'n_steps': 500,
     #     'affected_time_proportion': 0.1,
     #     'affected_location_proportion': 0.1,
@@ -715,16 +714,16 @@ if __name__ == '__main__':
 
     config = {
         'name': 'simulation_test',
-        'type_of_time_series': ['trend_seasonal'],
+        'type_of_time_series': ['iid_noise'],
         'type_of_anomalies': ['point'],
-        'temporal_methods': ['NN'],
-        'spatial_methods': ['no laws'],
-        'n_locations': 40000,
-        'grid_size': 200,
-        'n_steps': 500,
+        'temporal_methods': ['NN', 'outlier_test'],
+        'spatial_methods': ['no laws', 'laws'],
+        'n_locations': 400,
+        'grid_size': 20,
+        'n_steps': 20,
         'affected_time_proportion': 0.1,
         'affected_location_proportion': 0.1,
-        'shock_magnitude': [3]
+        'shock_magnitude': [2]
     }
 
     run_simulation(config)
