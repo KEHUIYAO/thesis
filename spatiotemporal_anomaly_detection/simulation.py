@@ -351,7 +351,7 @@ def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1):
     training_dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
     test_dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    configs = Configs(seq_len=input_size, pred_len=horizon, individual=True, enc_in=n_locations)
+    configs = Configs(seq_len=input_size, pred_len=horizon, individual=False, enc_in=n_locations)
     model = Model(configs)
     lightning_model = LightningModel(model)
 
@@ -663,9 +663,9 @@ def run_simulation(config):
                 for temporal_method in temporal_methods:
                     for spatial_method in spatial_methods:
                         if spatial_method == 'laws':
-                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=True)
+                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=True, horizon=config['horizon'], input_size=config['input_size'])
                         else:
-                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=False)
+                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=False, horizon=config['horizon'], input_size=config['input_size'])
                         auc = plot_roc_and_calculate_auc(anomalies, res)
                         df_simulation_result.loc[len(df_simulation_result)] = [time_series_name, anomaly_type, shock,
                                                                                temporal_method, spatial_method, auc]
@@ -690,41 +690,45 @@ if __name__ == '__main__':
     #     'n_steps': 20,
     #     'affected_time_proportion': 0.1,
     #     'affected_location_proportion': 0.1,
-    #     'shock_magnitude': [3, 2, 1]
+    #     'shock_magnitude': [3, 2, 1],
+    #     'horizon': 1,
+    #     'input_size': 1
     # }
     #
     # run_simulation(config)
-
-    # config = {
-    #     'name': 'simulation_long_time_series',
-    #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
-    #     'type_of_anomalies': ['point', 'collective'],
-    #     'temporal_methods': ['NN', 'outlier_test'],
-    #     'spatial_methods': ['laws', 'no_laws'],
-    #     'n_locations': 10000,
-    #     'grid_size': 100,
-    #     'n_steps': 500,
-    #     'affected_time_proportion': 0.1,
-    #     'affected_location_proportion': 0.1,
-    #     'shock_magnitude': [3, 2, 1]
-    # }
-    #
-    # run_simulation(config)
-
 
     config = {
-        'name': 'simulation_test',
-        'type_of_time_series': ['iid_noise'],
-        'type_of_anomalies': ['point'],
+        'name': 'simulation_long_time_series',
+        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+        'type_of_anomalies': ['point', 'collective'],
         'temporal_methods': ['NN', 'outlier_test'],
-        'spatial_methods': ['no laws', 'laws'],
+        'spatial_methods': ['laws', 'no_laws'],
         'n_locations': 400,
         'grid_size': 20,
-        'n_steps': 20,
+        'n_steps': 500,
         'affected_time_proportion': 0.1,
         'affected_location_proportion': 0.1,
-        'shock_magnitude': [2]
+        'shock_magnitude': [3, 2, 1],
+        'horizon': 1,
+        'input_size': 10
     }
 
     run_simulation(config)
+
+
+    # config = {
+    #     'name': 'simulation_test',
+    #     'type_of_time_series': ['iid_noise'],
+    #     'type_of_anomalies': ['point'],
+    #     'temporal_methods': ['NN', 'outlier_test'],
+    #     'spatial_methods': ['no laws', 'laws'],
+    #     'n_locations': 400,
+    #     'grid_size': 20,
+    #     'n_steps': 20,
+    #     'affected_time_proportion': 0.1,
+    #     'affected_location_proportion': 0.1,
+    #     'shock_magnitude': [2]
+    # }
+    #
+    # run_simulation(config)
 
