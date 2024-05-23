@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-scenario = 'simulation_short_time_series'
+scenario = 'simulation_long_time_series'
 
 data = pd.read_csv(f'./results/{scenario}.csv')
 
@@ -52,7 +52,7 @@ data.rename(columns={'spatial method':'+LAWS'}, inplace=True)
 
 
 g = sns.FacetGrid(data, col="type of anomalies", row="type of time series", margin_titles=True, height=3, aspect=1.5)
-g.map_dataframe(sns.scatterplot, x="jittered shock magnitude", y="auc", hue="+LAWS", style="Time-Series Anomaly Detection Method", s=100, palette='Set2', markers=['o', 's'], alpha=0.7)
+g.map_dataframe(sns.scatterplot, x="jittered shock magnitude", y="auc", hue="+LAWS", style="Time-Series Anomaly Detection Method", s=100, palette='Set1', markers=['o', 's'], alpha=0.7)
 # g.map_dataframe(sns.swarmplot, x="shock magnitude", y="auc", hue="method", palette='Set1', dodge=True)
 
 # add legend on top of the figure
