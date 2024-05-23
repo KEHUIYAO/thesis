@@ -1,0 +1,73 @@
+type of time series,type of anomalies,shock magnitude,temporal method,spatial method,auc
+trend_seasonal,point,3,NN,laws,0.9534083017676765
+trend_seasonal,point,3,NN,no laws,0.9646070075757577
+trend_seasonal,point,3,outlier_test,laws,0.9304229797979798
+trend_seasonal,point,3,outlier_test,no laws,0.979151672979798
+trend_seasonal,collective,3,NN,laws,0.5377487179487179
+trend_seasonal,collective,3,NN,no laws,0.6131894230769231
+trend_seasonal,collective,3,outlier_test,laws,0.46964166666666673
+trend_seasonal,collective,3,outlier_test,no laws,0.6071176282051283
+trend_seasonal,point,2,NN,laws,0.48175978535353536
+trend_seasonal,point,2,NN,no laws,0.636328125
+trend_seasonal,point,2,outlier_test,laws,0.577863005050505
+trend_seasonal,point,2,outlier_test,no laws,0.5256960227272728
+trend_seasonal,collective,2,NN,laws,0.5424285256410257
+trend_seasonal,collective,2,NN,no laws,0.5909249999999999
+trend_seasonal,collective,2,outlier_test,laws,0.4833503205128205
+trend_seasonal,collective,2,outlier_test,no laws,0.6075519230769231
+trend_seasonal,point,1,NN,laws,0.4288991477272727
+trend_seasonal,point,1,NN,no laws,0.46927477904040404
+trend_seasonal,point,1,outlier_test,laws,0.6348863636363636
+trend_seasonal,point,1,outlier_test,no laws,0.519960542929293
+trend_seasonal,collective,1,NN,laws,0.5014157051282051
+trend_seasonal,collective,1,NN,no laws,0.5672419871794872
+trend_seasonal,collective,1,outlier_test,laws,0.4428602564102565
+trend_seasonal,collective,1,outlier_test,no laws,0.6000144230769231
+iid_noise,point,3,NN,laws,0.9863320707070707
+iid_noise,point,3,NN,no laws,0.9595833333333333
+iid_noise,point,3,outlier_test,laws,0.9880673926767677
+iid_noise,point,3,outlier_test,no laws,0.9381723484848485
+iid_noise,collective,3,NN,laws,0.9794679487179487
+iid_noise,collective,3,NN,no laws,0.9446753205128204
+iid_noise,collective,3,outlier_test,laws,0.5540426282051283
+iid_noise,collective,3,outlier_test,no laws,0.6478817307692308
+iid_noise,point,2,NN,laws,0.9218939393939394
+iid_noise,point,2,NN,no laws,0.8726586174242423
+iid_noise,point,2,outlier_test,laws,0.9434524936868687
+iid_noise,point,2,outlier_test,no laws,0.8294113005050505
+iid_noise,collective,2,NN,laws,0.9135342948717949
+iid_noise,collective,2,NN,no laws,0.8467397435897437
+iid_noise,collective,2,outlier_test,laws,0.5897839743589743
+iid_noise,collective,2,outlier_test,no laws,0.6316323717948717
+iid_noise,point,1,NN,laws,0.7614851641414141
+iid_noise,point,1,NN,no laws,0.7034785353535353
+iid_noise,point,1,outlier_test,laws,0.759984217171717
+iid_noise,point,1,outlier_test,no laws,0.672466856060606
+iid_noise,collective,1,NN,laws,0.6533032051282052
+iid_noise,collective,1,NN,no laws,0.6361391025641026
+iid_noise,collective,1,outlier_test,laws,0.4951060897435897
+iid_noise,collective,1,outlier_test,no laws,0.568689423076923
+ar,point,3,NN,laws,0.9838265467171717
+ar,point,3,NN,no laws,0.9563865214646464
+ar,point,3,outlier_test,laws,0.9896338383838383
+ar,point,3,outlier_test,no laws,0.9462547348484848
+ar,collective,3,NN,laws,0.8859477564102564
+ar,collective,3,NN,no laws,0.8344625
+ar,collective,3,outlier_test,laws,0.6385032051282051
+ar,collective,3,outlier_test,no laws,0.6157067307692308
+ar,point,2,NN,laws,0.9289480744949494
+ar,point,2,NN,no laws,0.8730050505050504
+ar,point,2,outlier_test,laws,0.9415435606060606
+ar,point,2,outlier_test,no laws,0.8205658143939394
+ar,collective,2,NN,laws,0.7360887820512819
+ar,collective,2,NN,no laws,0.6961714743589743
+ar,collective,2,outlier_test,laws,0.6338080128205128
+ar,collective,2,outlier_test,no laws,0.5895349358974359
+ar,point,1,NN,laws,0.7747593118686867
+ar,point,1,NN,no laws,0.7041927083333334
+ar,point,1,outlier_test,laws,0.6351420454545454
+ar,point,1,outlier_test,no laws,0.692360321969697
+ar,collective,1,NN,laws,0.5899346153846154
+ar,collective,1,NN,no laws,0.5518128205128205
+ar,collective,1,outlier_test,laws,0.5620570512820513
+ar,collective,1,outlier_test,no laws,0.5353198717948717
