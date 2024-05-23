@@ -14,6 +14,25 @@ from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 import torch
 
+def time_series_outlier_test(anomalous_data):
+    n_locations = anomalous_data.shape[0]
+    n_steps = anomalous_data.shape[1]
+
+    studentized_resid = np.zeros([n_locations, n_steps])
+    unadj_pvalue = np.ones([n_locations, n_steps])
+    bonf_pvalue = np.ones([n_locations, n_steps])
+    for i in range(n_locations):
+        df = pd.DataFrame({'Y': anomalous_data[i, 1:], 'X': anomalous_data[i, :-1], 't': np.arange(1, n_steps)})
+        fit = ols('Y~X+t', data=df).fit()
+        outlier = fit.outlier_test()
+        # print(outlier)
+        # starting from t=2
+        studentized_resid[i, 1:] = outlier['student_resid']
+        unadj_pvalue[i, 1:] = outlier['unadj_p']
+
+    return unadj_pvalue
+
+
 # def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
 #     """
 #     Detects anomalies in a time series dataset using the DLinear model from NeuralForecast.
