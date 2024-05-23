@@ -9,6 +9,10 @@ from scipy.stats import norm
 import time
 import sklearn.neighbors
 import matplotlib.pyplot as plt
+from dlinear import Model, LightningModel, STData, Configs
+from torch.utils.data import Dataset, DataLoader
+import pytorch_lightning as pl
+import torch
 
 
 def generate_ar_series(n_steps, ar_params=[0.5, -0.2], sigma=1):
@@ -189,7 +193,7 @@ def add_collective_anomalies(data, dist, affected_time_proportion=0.05, affected
         The intensity of the anomaly impact, which can be either positive or negative (default is 10).
 
     Returns:
-    updated_data : np.array
+    anomalous_data : np.array
         The dataset updated with anomalies included.
     anomalies : list
         A list of tuples, each containing a time index and the corresponding indices of affected locations.
@@ -261,6 +265,75 @@ def time_series_outlier_test(anomalous_data):
     return unadj_pvalue
 
 
+# def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
+#     """
+#     Detects anomalies in a time series dataset using the DLinear model from NeuralForecast.
+#
+#     Args:
+#     anomalous_data (pd.DataFrame): Input DataFrame containing the time series data.
+#     horizon (int): The forecast horizon and input size for the DLinear model.
+#
+#     Returns:
+#     np.ndarray: An array of p-values indicating the anomaly likelihood for each time point.
+#     """
+#     n_locations, n_steps = anomalous_data.shape
+#
+#     # Create a DataFrame
+#     df_anomalous = pd.DataFrame(anomalous_data)
+#
+#     # Melt the DataFrame to long format
+#     df_anomalous = df_anomalous.reset_index().melt(id_vars='index', var_name='time', value_name='y')
+#
+#     # Rename columns
+#     df_anomalous.columns = ['unique_id', 'ds', 'y']
+#
+#     # Convert the 'ds' column to integers
+#     df_anomalous['ds'] = df_anomalous['ds'].astype(int)
+#
+#     nf = NeuralForecast(
+#         models=[DLinear(input_size=input_size, h=horizon, max_steps=10000)],
+#         freq=1
+#     )
+#     val_size = int(0.2 * n_steps)
+#
+#     nf.fit(df=df_anomalous, val_size=val_size)
+#     df_pred = nf.predict_insample(step_size=horizon)
+#
+#     df_pred.loc[df_pred['ds'] < horizon, 'DLinear'] = df_pred.loc[df_pred['ds'] < horizon, 'y']
+#     df_pred.loc[:, 'reconstruction_error'] = np.abs(df_pred.loc[:, 'y'] - df_pred.loc[:, 'DLinear'])
+#
+#     # # Empirical p-values
+#     # # calculate the empirical p-values of the reconstruction error
+#     # df_pred.loc[:, 'p_value'] = 1 - df_pred.loc[:, 'reconstruction_error'].rank(pct=True)
+#
+#     # use IQR to detect outliers
+#     reconstruction_error = df_pred.loc[df_pred['ds'] >= horizon, 'reconstruction_error']
+#     q1 = reconstruction_error.quantile(0.25)
+#     q3 = reconstruction_error.quantile(0.75)
+#     iqr = q3 - q1
+#     lower_bound = q1 - 1.5 * iqr
+#     upper_bound = q3 + 1.5 * iqr
+#
+#     # assume the reconstruction error follows a normal distribution for normal points
+#     mean = np.mean(reconstruction_error[reconstruction_error < upper_bound])
+#     std = np.std(reconstruction_error[reconstruction_error < upper_bound])
+#
+#     # p-value is the 1-F(x), where F(x) is the CDF of the normal distribution with mean and std
+#     df_pred.loc[:, 'p_value'] = 1 - norm.cdf(df_pred.loc[:, 'reconstruction_error'], loc=mean, scale=std)
+#
+#     df_pred = df_pred.reset_index(drop=False)
+#
+#     # Sort the DataFrame by 'unique_id' and 'ds' (if 'ds' is not sorted)
+#     df_pred = df_pred.sort_values(by=['unique_id', 'ds'])
+#     # Pivot the DataFrame
+#     pivot_df = df_pred.pivot(index='unique_id', columns='ds', values='p_value')
+#
+#     # Convert the pivoted DataFrame to a NumPy array
+#     p_values = pivot_df.values
+#
+#     return p_values
+
+
 def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
     """
     Detects anomalies in a time series dataset using the DLinear model from NeuralForecast.
@@ -274,60 +347,49 @@ def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=10):
     """
     n_locations, n_steps = anomalous_data.shape
 
-    # Create a DataFrame
-    df_anomalous = pd.DataFrame(anomalous_data)
+    dataset = STData(anomalous_data, input_len=input_size, pred_len=horizon, stride=horizon)
 
-    # Melt the DataFrame to long format
-    df_anomalous = df_anomalous.reset_index().melt(id_vars='index', var_name='time', value_name='y')
+    training_dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    test_dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    # Rename columns
-    df_anomalous.columns = ['unique_id', 'ds', 'y']
+    configs = Configs(seq_len=input_size, pred_len=horizon, individual=False, enc_in=n_locations)
+    model = Model(configs)
+    lightning_model = LightningModel(model)
 
-    # Convert the 'ds' column to integers
-    df_anomalous['ds'] = df_anomalous['ds'].astype(int)
+    trainer = pl.Trainer(max_epochs=500)
+    trainer.fit(lightning_model, training_dataloader)
 
-    nf = NeuralForecast(
-        models=[DLinear(input_size=input_size, h=horizon, max_steps=10000)],
-        freq=1
-    )
-    val_size = int(0.2 * n_steps)
+    # Generate predictions
+    predictions = trainer.predict(lightning_model, test_dataloader)
 
-    nf.fit(df=df_anomalous, val_size=val_size)
-    df_pred = nf.predict_insample(step_size=horizon)
+    # concatenate predictions along the first dimension, transpose the predictions to [num_channels, pred_len]
+    predictions = torch.cat(predictions, dim=0).squeeze().transpose(1, 0).detach().numpy()
 
-    df_pred.loc[df_pred['ds'] < horizon, 'DLinear'] = df_pred.loc[df_pred['ds'] < horizon, 'y']
-    df_pred.loc[:, 'reconstruction_error'] = np.abs(df_pred.loc[:, 'y'] - df_pred.loc[:, 'DLinear'])
+    reconstruction_error = predictions - anomalous_data[:, input_size:]
 
-    # # Empirical p-values
-    # # calculate the empirical p-values of the reconstruction error
-    # df_pred.loc[:, 'p_value'] = 1 - df_pred.loc[:, 'reconstruction_error'].rank(pct=True)
+    # # plot the histogram of the reconstruction error
+    # plt.hist(reconstruction_error.flatten(), bins=100)
+    # plt.show()
+
 
     # use IQR to detect outliers
-    reconstruction_error = df_pred.loc[df_pred['ds'] >= horizon, 'reconstruction_error']
-    q1 = reconstruction_error.quantile(0.25)
-    q3 = reconstruction_error.quantile(0.75)
+    q1 = np.percentile(reconstruction_error, 25)
+    q3 = np.percentile(reconstruction_error, 75)
     iqr = q3 - q1
     lower_bound = q1 - 1.5 * iqr
     upper_bound = q3 + 1.5 * iqr
 
     # assume the reconstruction error follows a normal distribution for normal points
-    mean = np.mean(reconstruction_error[reconstruction_error < upper_bound])
-    std = np.std(reconstruction_error[reconstruction_error < upper_bound])
+    mean = np.mean(reconstruction_error[(reconstruction_error < upper_bound) & (reconstruction_error > lower_bound)])
+    std = np.std(reconstruction_error[(reconstruction_error < upper_bound) & (reconstruction_error > lower_bound)])
 
     # p-value is the 1-F(x), where F(x) is the CDF of the normal distribution with mean and std
-    df_pred.loc[:, 'p_value'] = 1 - norm.cdf(df_pred.loc[:, 'reconstruction_error'], loc=mean, scale=std)
-
-    df_pred = df_pred.reset_index(drop=False)
-
-    # Sort the DataFrame by 'unique_id' and 'ds' (if 'ds' is not sorted)
-    df_pred = df_pred.sort_values(by=['unique_id', 'ds'])
-    # Pivot the DataFrame
-    pivot_df = df_pred.pivot(index='unique_id', columns='ds', values='p_value')
-
-    # Convert the pivoted DataFrame to a NumPy array
-    p_values = pivot_df.values
+    p_values = np.ones((n_locations, n_steps))
+    temp = norm.cdf(reconstruction_error, loc=mean, scale=std)
+    p_values[:, input_size:] = np.minimum(1 - temp, temp) * 2
 
     return p_values
+
 
 
 def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='gaussian'):
@@ -618,34 +680,51 @@ def run_simulation(config):
 
 
 if __name__ == '__main__':
-    config = {
-        'name': 'simulation_short_time_series',
-        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
-        'type_of_anomalies': ['point', 'collective'],
-        'temporal_methods': ['NN', 'outlier_test'],
-        'spatial_methods': ['laws', 'no laws'],
-        'n_locations': 400,
-        'grid_size': 20,
-        'n_steps': 20,
-        'affected_time_proportion': 0.1,
-        'affected_location_proportion': 0.1,
-        'shock_magnitude': [3, 2, 1]
-    }
+    # config = {
+    #     'name': 'simulation_short_time_series',
+    #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+    #     'type_of_anomalies': ['point', 'collective'],
+    #     'temporal_methods': ['NN', 'outlier_test'],
+    #     'spatial_methods': ['laws', 'no laws'],
+    #     'n_locations': 400,
+    #     'grid_size': 20,
+    #     'n_steps': 20,
+    #     'affected_time_proportion': 0.1,
+    #     'affected_location_proportion': 0.1,
+    #     'shock_magnitude': [3, 2, 1]
+    # }
+    #
+    # run_simulation(config)
+    #
+    # config = {
+    #     'name': 'simulation_long_time_series',
+    #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+    #     'type_of_anomalies': ['point', 'collective'],
+    #     'temporal_methods': ['NN', 'outlier_test'],
+    #     'spatial_methods': ['laws', 'no_laws'],
+    #     'n_locations': 400,
+    #     'grid_size': 20,
+    #     'n_steps': 500,
+    #     'affected_time_proportion': 0.1,
+    #     'affected_location_proportion': 0.1,
+    #     'shock_magnitude': [3, 2, 1]
+    # }
+    #
+    # run_simulation(config)
 
-    run_simulation(config)
 
     config = {
-        'name': 'simulation_long_time_series',
-        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
-        'type_of_anomalies': ['point', 'collective'],
-        'temporal_methods': ['NN', 'outlier_test'],
-        'spatial_methods': ['laws', 'no_laws'],
-        'n_locations': 400,
-        'grid_size': 20,
+        'name': 'simulation_test',
+        'type_of_time_series': ['trend_seasonal'],
+        'type_of_anomalies': ['point'],
+        'temporal_methods': ['NN'],
+        'spatial_methods': ['no laws'],
+        'n_locations': 40000,
+        'grid_size': 200,
         'n_steps': 500,
         'affected_time_proportion': 0.1,
         'affected_location_proportion': 0.1,
-        'shock_magnitude': [3, 2, 1]
+        'shock_magnitude': [3]
     }
 
     run_simulation(config)
