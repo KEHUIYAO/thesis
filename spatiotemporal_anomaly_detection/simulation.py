@@ -360,8 +360,8 @@ def run_simulation(config):
         elif time_series_name == 'iid_noise':
             time_series_generator = generate_noise
         data = generate_spatiotemporal_data(n_locations, n_steps, time_series_generator)
-        coordinates = np.array([(i // grid_size, i % grid_size) for i in range(grid_size ** 2)])
-        dist = cdist(coordinates, coordinates, metric='euclidean')
+        locations = np.array([(i // grid_size, i % grid_size) for i in range(grid_size ** 2)])
+        dist = cdist(locations, locations, metric='euclidean')
 
         for shock in shock_magnitude:
             for anomaly_type in type_of_anomalies:
@@ -379,9 +379,9 @@ def run_simulation(config):
                 for temporal_method in temporal_methods:
                     for spatial_method in spatial_methods:
                         if spatial_method == 'laws':
-                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=True, horizon=config['horizon'], input_size=config['input_size'])
+                            res = spatiotemporal_anomaly_detection(anomalous_data, locations, temporal_method, laws=True, horizon=config['horizon'], input_size=config['input_size'])
                         else:
-                            res = spatiotemporal_anomaly_detection(anomalous_data, dist, temporal_method, laws=False, horizon=config['horizon'], input_size=config['input_size'])
+                            res = spatiotemporal_anomaly_detection(anomalous_data, locations, temporal_method, laws=False, horizon=config['horizon'], input_size=config['input_size'])
                         auc = plot_roc_and_calculate_auc(anomalies, res)
                         df_simulation_result.loc[len(df_simulation_result)] = [time_series_name, anomaly_type, shock,
                                                                                temporal_method, spatial_method, auc]
@@ -412,39 +412,41 @@ if __name__ == '__main__':
     # }
     #
     # run_simulation(config)
-
-    config = {
-        'name': 'simulation_long_time_series',
-        'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
-        'type_of_anomalies': ['point', 'collective'],
-        'temporal_methods': ['NN', 'outlier_test'],
-        'spatial_methods': ['laws', 'no_laws'],
-        'n_locations': 400,
-        'grid_size': 20,
-        'n_steps': 500,
-        'affected_time_proportion': 0.1,
-        'affected_location_proportion': 0.1,
-        'shock_magnitude': [3, 2, 1],
-        'horizon': 1,
-        'input_size': 10
-    }
-
-    run_simulation(config)
-
-
+    #
     # config = {
-    #     'name': 'simulation_test',
-    #     'type_of_time_series': ['iid_noise'],
-    #     'type_of_anomalies': ['point'],
+    #     'name': 'simulation_long_time_series',
+    #     'type_of_time_series': ['trend_seasonal', 'iid_noise', 'ar'],
+    #     'type_of_anomalies': ['point', 'collective'],
     #     'temporal_methods': ['NN', 'outlier_test'],
-    #     'spatial_methods': ['no laws', 'laws'],
+    #     'spatial_methods': ['laws', 'no_laws'],
     #     'n_locations': 400,
     #     'grid_size': 20,
-    #     'n_steps': 20,
+    #     'n_steps': 500,
     #     'affected_time_proportion': 0.1,
     #     'affected_location_proportion': 0.1,
-    #     'shock_magnitude': [2]
+    #     'shock_magnitude': [3, 2, 1],
+    #     'horizon': 1,
+    #     'input_size': 10
     # }
     #
     # run_simulation(config)
+
+
+    config = {
+        'name': 'simulation_test',
+        'type_of_time_series': ['iid_noise'],
+        'type_of_anomalies': ['point'],
+        'temporal_methods': ['outlier_test'],
+        'spatial_methods': ['laws'],
+        'n_locations': 400,
+        'grid_size': 20,
+        'n_steps': 20,
+        'affected_time_proportion': 0.1,
+        'affected_location_proportion': 0.1,
+        'shock_magnitude': [2],
+        'horizon': 1,
+        'input_size': 1
+    }
+
+    run_simulation(config)
 
