@@ -18,10 +18,10 @@ def generate_ar_series(n_steps, ar_params=[0.5, -0.2], sigma=1):
         np.array: Generated autoregressive time series.
     """
     # randomly initialize the ar_params
-    # rng = np.random.default_rng(42)
+    rng = np.random.default_rng(42)
     while True:
-        ar_params = np.random.uniform(-1, 1, 2)
-       # ar_params = rng.uniform(-1, 1, 2)
+        # ar_params = np.random.uniform(-1, 1, 2)
+        ar_params = rng.uniform(-1, 1, 2)
         if abs(ar_params[1]) < 1 and abs(ar_params[0] + ar_params[1]) < 1 and abs(ar_params[0] - ar_params[1]) < 1:
             break
 
@@ -45,8 +45,8 @@ def generate_ar_series(n_steps, ar_params=[0.5, -0.2], sigma=1):
 def generate_noise(n_steps, sigma=1):
     # randomly initialize the mu from the standard normal distribution
     rng = np.random.default_rng(42)
-    mu = np.random.normal(0, 1)
-    # mu = rng.normal(0, 1)
+    # mu = np.random.normal(0, 1)
+    mu = rng.normal(0, 1)
 
 
     return np.random.normal(mu, sigma, n_steps)
@@ -66,14 +66,14 @@ def generate_seasonal_ts(n_steps, trend_params=(0.1, 5), seasonality_params=[(3,
         np.array: Generated time series with seasonality and trend.
     """
     # randomly initialize the trend_params and seasonality_params
-    # rng = np.random.default_rng(42)
-    trend_params = (np.random.uniform(-1, 1), np.random.uniform(0, 1))
-    # trend_params = (rng.uniform(-1, 1), rng.uniform(0, 1))
-    seasonality_params[0] = [np.random.uniform(1, 3), np.random.uniform(3, 6)]
-    seasonality_params[1] = [np.random.uniform(1, 3), np.random.uniform(
-    3, 6)]
-    # seasonality_params[0] = [rng.uniform(1, 3), rng.uniform(3, 6)]
-    # seasonality_params[1] = [rng.uniform(1, 3), rng.uniform(3, 6)]
+    rng = np.random.default_rng(42)
+    # trend_params = (np.random.uniform(-1, 1), np.random.uniform(0, 1))
+    trend_params = (rng.uniform(-1, 1), rng.uniform(0, 1))
+    # seasonality_params[0] = [np.random.uniform(1, 3), np.random.uniform(3, 6)]
+    # seasonality_params[1] = [np.random.uniform(1, 3), np.random.uniform(
+    # 3, 6)]
+    seasonality_params[0] = [rng.uniform(1, 3), rng.uniform(3, 6)]
+    seasonality_params[1] = [rng.uniform(1, 3), rng.uniform(3, 6)]
 
 
     slope, intercept = trend_params
@@ -427,12 +427,12 @@ if __name__ == '__main__':
         'spatial_methods': ['no_laws'],
         'n_locations': 400,
         'grid_size': 20,
-        'n_steps': 100,
+        'n_steps': 20,
         'affected_time_proportion': 0.1,
         'affected_location_proportion': 0.1,
         'shock_magnitude': [3, 2, 1],
         'horizon': 1,
-        'input_size': 10
+        'input_size': 5
     }
 
     run_simulation(config)
