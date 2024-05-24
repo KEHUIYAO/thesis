@@ -12,6 +12,8 @@ import statsmodels.tsa.ar_model
 import scipy.stats
 import statsmodels.formula.api
 import sklearn.neighbors
+from scipy.spatial.distance import cdist
+from anomaly_detection import spatiotemporal_anomaly_detection
 
 def laws_procedure(p_values, pis, weights, alpha):
     """the laws procedure for FDR control.
@@ -213,8 +215,6 @@ def crop_rasterfile_using_shapefile(rasterfile_path, crop_shapefile_path, path_o
         ff.write(lidar_chm_crop[0], 1)
 
 if __name__ == '__main__':
-    alpha = 0.05
-
     rasterfile_list_path = ['./Yakutia_EVI_Product/Data/LAEA_y' +
                             str(year) + '_Maximum_Summertime_MODIS_EVI.tif' for year in range(2002, 2022)]
 
@@ -234,6 +234,12 @@ if __name__ == '__main__':
 
     data = np.stack(data, axis=-1)
 
+    n_row = data.shape[0]
+    n_col = data.shape[1]
+    locations = np.array([(i // n_row, i % n_col) for i in range(n_row * n_col)])
+    dist = cdist(locations, locations, metric='euclidean')
+
+    # visualize the raw data
     fig, ax = plt.subplots(4, 5)
     for i in range(4):
         for j in range(5):
@@ -244,28 +250,59 @@ if __name__ == '__main__':
     plt.show()
     fig.savefig('figure/raw_data.png')
 
-    studentized_resid, unadj_pvalue = locationwise_time_series_anomaly_detection(data)
+    # # NN no laws
+    # res_list= spatiotemporal_anomaly_detection(data.reshape(n_row*n_col, -1), locations, ts='NN', laws=False, one_sided='right', horizon=1, input_size=1)
+    # res = res_list[2].reshape(n_row, n_col, -1)
+    #
+    # fig, ax = plt.subplots(4, 5)
+    # for i in range(4):
+    #     for j in range(5):
+    #         ind = i * 5 + j
+    #         temp = res[..., ind]
+    #         ax[i, j].imshow(temp, cmap='gray_r')
+    #         ax[i, j].set_xticks([])
+    #         ax[i, j].set_yticks([])
+    #
+    # plt.show()
+    # fig.savefig(f'figure/nn_no_laws.png')
+    #
+    # # NN laws
+    # res_list = spatiotemporal_anomaly_detection(data.reshape(n_row * n_col, -1), locations, ts='NN', laws=True,
+    #                                             one_sided='right', horizon=1, input_size=1)
+    # res = res_list[2].reshape(n_row, n_col, -1)
+    # fig, ax = plt.subplots(4, 5)
+    # for i in range(4):
+    #     for j in range(5):
+    #         ind = i * 5 + j
+    #         ax[i, j].imshow(res[..., ind], cmap='gray_r')
+    #         ax[i, j].set_xticks([])
+    #         ax[i, j].set_yticks([])
+    # plt.show()
+    # fig.savefig(f'figure/nn_laws.png')
 
-    unadj_pvalue = scipy.stats.t.cdf(studentized_resid, df=15)
+
+
+    # statistical method no laws
+    res_list= spatiotemporal_anomaly_detection(data.reshape(n_row*n_col, -1), locations, ts='outlier_test', laws=False, one_sided='right')
+    res = res_list[2].reshape(n_row, n_col, -1)
 
     fig, ax = plt.subplots(4, 5)
     for i in range(4):
         for j in range(5):
             ind = i * 5 + j
-            temp = unadj_pvalue[..., ind]
-            output = laws_procedure_2D_grid(temp, alpha=alpha)
-            ax[i, j].imshow(output, cmap='gray_r')
+            temp = res[..., ind]
+            ax[i, j].imshow(temp, cmap='gray_r')
             ax[i, j].set_xticks([])
             ax[i, j].set_yticks([])
 
     plt.show()
-    fig.savefig(f'figure/laws_{alpha}.png')
+    fig.savefig(f'figure/statistical_method_no_laws.png')
 
-    # without Bonferroni correction
-    res = np.zeros(unadj_pvalue.shape)
-    res[unadj_pvalue < alpha] = 1
+    # statistical method laws
+    res_list = spatiotemporal_anomaly_detection(data.reshape(n_row * n_col, -1), locations, ts='NN', laws=True,
+                                                one_sided='right')
+    res = res_list[2].reshape(n_row, n_col, -1)
     fig, ax = plt.subplots(4, 5)
-
     for i in range(4):
         for j in range(5):
             ind = i * 5 + j
@@ -273,5 +310,4 @@ if __name__ == '__main__':
             ax[i, j].set_xticks([])
             ax[i, j].set_yticks([])
     plt.show()
-    fig.savefig(f'figure/no_laws_{alpha}.png')
-
+    fig.savefig(f'figure/statistical_method_laws.png')
