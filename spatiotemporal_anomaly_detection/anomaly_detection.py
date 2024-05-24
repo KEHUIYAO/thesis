@@ -26,7 +26,8 @@ def time_series_outlier_test(anomalous_data, one_sided='None'):
         outlier = fit.outlier_test()
         # print(outlier)
         # starting from t=2
-        studentized_resid[i, 1:] = outlier['student_resid']
+        # residual is Yhat - Y
+        studentized_resid[i, 1:] = -outlier['student_resid']
         if one_sided == 'None':
             unadj_pvalue[i, 1:] = outlier['unadj_p']
         elif one_sided == 'left':
