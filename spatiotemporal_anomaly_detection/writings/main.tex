@@ -43,7 +43,7 @@
 \maketitle
 
 \begin{abstract}
-Spatiotemporal (ST) raster data, consisting of measurements taken at specific locations and times, are common in fields such as environmental monitoring, climate science, and natural disaster management. Detecting anomalies in these data is crucial for applications such as wildfire monitoring. This paper develops a novel two-step anomaly detection algorithm for ST raster data, integrating neural network-based and statistical time series anomaly detection methods with a locally adaptive weighting and screening (LAWS) strategy. This approach identifies anomalies by first generating p-values for each location-time point and then aggregating them using LAWS to identify spatial anomalies. Extensive simulations demonstrate the method's accuracy and scalability, particularly in large datasets. The algorithm's application to wildfire detection in the Sakha Republic demonstrates its practical effectiveness in identifying affected regions, aiding natural disaster management.
+Spatiotemporal (ST) raster data, consisting of measurements taken at specific locations and times, are common in fields such as environmental monitoring, climate science, and natural disaster management. Detecting anomalies in these data is crucial for applications such as wildfire monitoring. This chapter develops a novel two-step anomaly detection algorithm for ST raster data, integrating neural network-based and statistical time series anomaly detection methods with a locally adaptive weighting and screening (LAWS) strategy. The algorithm identifies anomalies by first generating p-values for each location-time point and then aggregating them using LAWS to identify spatial anomalies. Extensive simulations demonstrate the method's accuracy and scalability, particularly in large datasets. The algorithm's application to wildfire detection in the Sakha Republic demonstrates its practical effectiveness in identifying affected regions, aiding natural disaster management.
 
 \end{abstract}
 
@@ -62,9 +62,9 @@ In ST raster data, anomalies are typically spatially contiguous groups of locati
 %\section{Time Series Anomaly Detection}\label{sec: time series anomaly detection}
 Time series data often show smooth changes or follow predictable patterns. In time series, anomalies are usually defined as two types. The first type is point anomaly: an individual data point in a time series significantly differs from the rest. The second type is collective anomaly: a group of consecutive data points significantly deviate from the normal behavior or pattern of the data, even if the individual data points are not extreme on their own. 
 
-Many statistical methods in the time-series anomaly detection literature involve fitting a model to the time series data and examining residuals (the differences between predicted and actual values) to identify anomalies. Commonly used time series models include the autoregressive (AR) model, moving average (MA) model, autoregressive moving average (ARMA) model, autoregressive integrated moving average (ARIMA) model, and simple exponential smoothing model. In addition, robust models like the robust ARMA model \citep{muler2009robust} have been developed to handle anomalies more effectively by minimizing their influence on the model fitting process. Once a model is fitted, various methods can be used to detect anomalies from the residuals, such as the interquartile range (IQR) method \citep{IQR}, and the Generalized Extreme Studentized Deviate (GESD) test \citep{rosner1983percentage}. A common limitation of such statistical methods is that they assume a specific generative model to fit the data and thus, if the model is not well-specified, its predictions and residuals will be unreliable. 
+Many statistical methods in the time-series anomaly detection literature involve fitting a model to the time series data and examining residuals (the differences between predicted and actual values) to identify anomalies. Commonly used time series models include the autoregressive (AR) model, moving average (MA) model, autoregressive moving average (ARMA) model, autoregressive integrated moving average (ARIMA) model, and simple exponential smoothing model. Once a model is fitted, various methods can be used to detect anomalies from the residuals, such as the interquartile range (IQR) method \citep{IQR}, and the Generalized Extreme Studentized Deviate (GESD) test \citep{rosner1983percentage}. A common limitation of such statistical methods is that they assume a specific generative model to fit the data and thus, if the model is not well-specified, its predictions and residuals will be unreliable. 
 
-To address this challenge, deep learning approaches adapt to a data-driven approach, which learns a forecasting model directly from the observed data. The model then performs in-sample prediction, where extremely large prediction errors would indicate anomalous time points. With the rapid development of deep learning in computer vision and natural language processing, numerous models now exist for time series forecasting such as a convolutional neural network \citep{munir2018deepant}, a long short-term memory (LSTM) neural network \citep{malhotra2015long, malhotra2016lstm}, a generative adversarial network (GAN)\citep{geiger2020tadgan}, and a transformer architecture \citep{xu2021anomaly, nie2022time}. These models have significant flexibility in capturing underlying patterns in time series, enhancing forecasting accuracy, thus benefiting anomaly detection accuracy. However, deep learning models also have some limitations. First, they typically require large datasets for training. If there aren't enough observations in the time series, these models might not learn meaningful patterns and are prone to overfitting. Second, in-sample predictions rely on previous values as inputs. Therefore, if the initial set of input time stamps contains anomalies, these will likely not be detected.
+To address this challenge, deep learning approaches adapt to a data-driven approach, which learns a forecasting model directly from the observed data. The model then performs in-sample prediction, where unusually large prediction errors would indicate anomalous time points. With the rapid development of deep learning, numerous models now exist for time series forecasting such as a convolutional neural network \citep{munir2018deepant}, a long short-term memory (LSTM) neural network \citep{malhotra2015long, malhotra2016lstm}, a generative adversarial network (GAN)\citep{geiger2020tadgan}, and a transformer architecture \citep{xu2021anomaly, nie2022time}. These models have significant flexibility in capturing underlying patterns in time series, enhancing forecasting accuracy, thus benefiting anomaly detection accuracy. However, deep learning models also have some limitations. First, they typically require large datasets for training. If there aren't enough observations in the time series, these models might not learn meaningful patterns and are prone to overfitting. Second, in-sample predictions rely on previous values as inputs. Therefore, if the initial set of input time stamps contains anomalies, these will likely not be detected.
 
 
 %In the following section, we will explore both statistical and deep learning approaches for univariate time series anomaly detection.
@@ -118,7 +118,7 @@ Let $\{Y(s;t): s \in \mathbb{D}_s, t \in \mathbb{D}_t\}$ be a typical ST raster 
 
 
 
-We propose a two-step algorithm for spatiotemporal (ST) anomaly detection. The first step involves performing an anomaly detection test on the time series at each location $s$, providing p-values (an anomaly magnitude) for each location at each time $t$. For this step, we introduce two methods: a neural network (NN)-based approach and a statistical approach. The second step aggregates these p-values across all locations for each time point $t$ and uses a locally adaptive weighting and screening strategy (LAWS) to identify spatial anomalies. Finally, by combining data across all time points, we identify the overall anomalies. 
+We propose a two-step algorithm for spatiotemporal (ST) anomaly detection. The first step involves performing an anomaly detection test on the time series at each location $s$, providing p-values (an anomaly magnitude) for each location at each time $t$. For this step, we introduce two methods: a neural network (NN) based approach and a statistical approach. The second step aggregates these p-values across all locations for each time point $t$ and uses a locally adaptive weighting and screening strategy (LAWS) to identify spatial anomalies. Finally, by combining data across all time points, we identify the overall anomalies. 
 
 %In the following section, we will describe the two time series anomaly detection methods we use and the LAWS procedure for spatial anomaly detection.
 
@@ -160,9 +160,9 @@ The model training procedure for any univariate time series $\bm{X} \in \mathbb{
  
 
 \begin{algorithm}
-\caption{Model Training}\label{alg: nn training}
+\caption{Model Training for Univariate Time Series}\label{alg: nn training}
 \begin{algorithmic}[1] % Enables line numbering
-\State \textbf{Input:} A univariate time series $\bm{X} \in \mathbb{R}^L$, the model's input size $H_{\mathrm{in}}$, output size $H_{\mathrm{out}}$, moving average kernel size $k$, and training steps $n_{\mathrm{iter}}$.
+\State \textbf{Input:} A univariate time series $\bm{X} \in \mathbb{R}^L$, a DLinear model, and the training step $n_{\mathrm{iter}}$.
 \State \textbf{Output:} A trained DLinear model.
 
 \For{$i = 1$ \textbf{to} $n_{\mathrm{iter}}$}
@@ -205,7 +205,7 @@ The model training procedure for any univariate time series $\bm{X} \in \mathbb{
 
 
 
-After obtaining the predicted $\hat{\bm{X}}$, we calculate the reconstruction error $\bm{\epsilon}=|\bm{X}-\hat{\bm{X}}|$, where $\bm{\epsilon}$ is NaN at positions where $\hat{\bm{X}}$ is also NaN. At this stage, most forecasting methods use the reconstruction error for anomaly detection. The common practice is to set a threshold and consider errors that exceed this threshold as anomalous. The threshold can be determined manually or by using statistical approaches like the interquartile range method. Here, we propose an alternative approach that converts reconstruction errors into p-values. We assume that if there are no anomalies in the dataset, the distribution of $\bm{\epsilon}$ will follow a normal distribution. To find the error distribution without anomalies, we first use the interquartile range method to remove the outliers from $\bm{\epsilon}$, and then calculate the sample mean and sample standard deviation from the remaining errors as estimations of the error distribution's mean and standard deviation. Based on this error distribution, we compute the p-value for each point in the dataset. The details are outlined in Algorithm \ref{alg: convert errors to p-values}. The primary reason for converting reconstruction errors to p-values is that these p-values, obtained during the time series anomaly detection step, are well-suited for the subsequent spatial anomaly detection step, which we will discuss in detail in the next section.
+After obtaining the predicted $\hat{\bm{X}}$, we calculate the reconstruction error $\bm{\epsilon}=\hat{\bm{X}}-\bm{X}$, where $\bm{\epsilon}$ is NaN at positions where $\hat{\bm{X}}$ is also NaN. At this stage, most forecasting methods use the reconstruction error for anomaly detection. The common practice is to set a threshold and consider errors that exceed this threshold as anomalous. The threshold can be determined manually or by using statistical approaches like the interquartile range method. Here, we propose an alternative approach that converts reconstruction errors into p-values. We assume that if there are no anomalies in the dataset, the distribution of $\bm{\epsilon}$ will follow a normal distribution. To find the error distribution without anomalies, we first use the interquartile range method to remove the outliers from $\bm{\epsilon}$, and then calculate the sample mean and sample standard deviation from the remaining errors as estimations of the error distribution's mean and standard deviation. Based on this error distribution, we compute the p-value for each point in the dataset. The details are outlined in Algorithm \ref{alg: convert errors to p-values}. The primary reason for converting reconstruction errors to p-values is that these p-values, obtained during the time series anomaly detection step, are well-suited for the subsequent spatial anomaly detection step, which we will discuss in detail in the next section.
 
 
 
@@ -238,7 +238,30 @@ After obtaining the predicted $\hat{\bm{X}}$, we calculate the reconstruction er
 \end{algorithm}
 
 
-For the ST raster data $\{Y(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$. For each location, we have a time series $\bm{Y}_s=\{Y(s,1),\ldots, Y(s,L)\}$. Algorithms 1-3 are applied to convert $\bm{Y}_s$ into a vector of p-values $\bm{p}_s$. After processing all locations, we obtain p-values corresponding to the original ST raster data, denoted as $\{p(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$.
+For the ST raster data $\{Y(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$, we have an individual time series $\bm{Y}_s=\{Y(s,1),\ldots, Y(s,L)\}$ at each location. One approach is to train $K$ unique time series models for each location using Algorithm \ref{alg: nn training}. Each model is then used for in-sample prediction, and the reconstruction errors are converted to p-values following \ref{alg: convert errors to p-values} following algorithm \ref{alg: convert errors to p-values}. These p-values are denoted as $\{p(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$. 
+
+When the spatial field is extremely large, training a large number of models becomes infeasible. Additionally, if each time series contains relatively few observations, the risk of overfitting increases. To mitigate these issues, a single DLinear model can be trained to predict time series for all locations. The detailed training process for one model across all locations is described in Algorithm \ref{alg: nn training for multiple time series}. The key idea is to aggregate the gradient steps based on the loss from all locations.
+
+
+\begin{algorithm}
+\caption{Model Training for Multiple Time Series}\label{alg: nn training for multiple time series}
+\begin{algorithmic}[1] % Enables line numbering
+\State \textbf{Input:} A list of univariate time series $(\bm{X}_1,\ldots,\bm{X}_K)$, with $\bm{X}_i \in \mathbb{R}^L$, a DLinear model, and the training step $n_{\mathrm{iter}}$.
+\State \textbf{Output:} A trained DLinear model.
+
+\For{$i = 1$ \textbf{to} $n_{\mathrm{iter}}$}
+    \State Sample $j$ from Uniform$(\{1, \ldots, L-H_{\mathrm{in}}-H_{\mathrm{out}}+1\})$.
+    \For{$k = 1$ \textbf{to} $K$}
+
+    \State Select $\bm{X}_{\mathrm{in}} = \bm{X}_k[j:j+H_{\mathrm{in}}-1]$, and $\bm{X}_{\mathrm{out}} = \bm{X}_k[j+H_{\mathrm{in}}:j+H_{\mathrm{in}}+H_{\mathrm{out}}-1]$.
+    \State Calculate $\hat{\bm{X}}_{\mathrm{out}} =$ DLinear$(\bm{X}_{\mathrm{in}})$.
+    \State Update the weights in DLinear model by minimizing the loss $||\bm{X}_{\mathrm{out}} - \hat{\bm{X}}_{\mathrm{out}}||^2_2$.
+    \EndFor
+\EndFor
+\State Return the trained DLinear model.
+\end{algorithmic}
+\end{algorithm}
+
 
 
 
@@ -264,7 +287,11 @@ Let $\hat{Y}(s;t)=\hat{\beta}_{0s}+Y(s;t-1)\hat{\beta}_{1s}+t\hat{\beta}_{2s}$ b
 \end{align}
 In theory, $Z(s;t)$ follows a Student $t$ distribution with $L-5$ degrees of freedom. Therefore, we can calculate the p-value for each observation. Define $\Phi_{L-5}$ as the cumulative density function of the t distribution with $L-5$ degrees of freedom. Denote the p-value at location $s$ and time $t$ as $p(s;t)$, and $p(s;t)$ is calculated as:
 \begin{equation}\label{eq: p-value}
-	p(s;t)= 1-\Phi_{L-5}(|Z(s;t)|).
+    p(s;t) = 
+    \begin{cases} 
+        2\Phi_{L-5}(Z(s;t)), & \text{if } Z(s;t) < 0, \\
+        2(1 - \Phi_{L-5}(Z(s;t))), & \text{if } Z(s;t) \ge 0.
+    \end{cases}
 \end{equation}
 
 
@@ -351,8 +378,11 @@ Under mild conditions, the procedure is guaranteed to control the false discover
 
 
 \section{Simulation Study}\label{sec: simulation}
-In this section, we conduct a simulation study to evaluate the performance of our two-step anomaly detection method for the ST raster data. We consider both short and long time series, $\mathbb{D}_t=\{1,\ldots,20\}$ and $\mathbb{D}_t=\{1,\ldots,100\}$, the reasons to consider short time series are two: one is the real data we are analyzing is only 20 observations for each time series. Two is we want to check how the performance of the NN-based method changes when the data is from sparse to abundant. For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (iid) Gaussian noise. We also examine both point and collective anomalies in time series and contiguous in space, with different anomaly magnitudes. In each simulation, $\mathbb{D}_s$ is assumed to be a $200\times 200$ grid. To generate the ST raster data $\{Y(s;t)\}$, we first select a type of time series and then generate time series data for all locations within the grid. For simplicity, we do not consider the spatial correlation when generating the raster data. Then, we choose to inject ST anomalies to the data. In the following section, we will describe what type of time series we use and how anomalies are injected to the data.
+In this section, we conduct a simulation study to evaluate the performance of our two-step anomaly detection method for the ST raster data. We consider both short and long time series, with $\mathbb{D}_t=\{1,\ldots,20\}$ and $\mathbb{D}_t=\{1,\ldots,500\}$, respecitvely. There are two reasons for including short time series: first, the  real data we are analyzing consists of only 20 observations per time series; second, we aim to assess how the performance of the NN-based method changes when the data ranges from sparse to abundant.
 
+For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (iid) Gaussian noise. We also examine both point and collective anomalies in time series that are contiguous in space, with varying anomaly magnitudes. In each simulation, $\mathbb{D}_s$ is assumed to be a $100\times 100$ grid. 
+
+To generate the ST raster data $\{Y(s;t)\}$, we first select a type of time series and then generate the corresponding time series data for all locations within the grid. For simplicity, we do not consider the spatial correlation when generating the raster data. 
 
 \subsection{Types of Time Series}
 \subsubsection*{Autoregressive Time Series of Order $p$}
@@ -364,29 +394,29 @@ An autoregressive (AR) model of order $p$, denoted as AR($p$), is a time series 
 Here, $\phi_1, \phi_2, \dots, \phi_p$ are the autoregressive coefficients of the model, $\epsilon(s;t) \sim \mathcal{N}(0, \sigma^2)$. We set $p=2$, $\sigma=1$, $\phi_1\sim \mathrm{Uniform}(-1,1)$, $\phi_2 \sim \mathrm{Uniform(-1,1)}$ with the constraints that $|\phi_1+\phi_2|<1$ and $|\phi_1-\phi_2|<1$.
 
 \subsubsection*{Time Series with Trend and Seasonality}
-A time series with both trend and seasonality can be modeled using as follows:
+A time series with both trend and seasonality can be modeled as follows:
 \begin{equation}
 	Y(s;t) = \beta(s;t) + v(s;t) + \epsilon(s;t).
 \end{equation}
-Here, $\beta(s;t) = \beta_0 + \beta_1 t$ is the trend component, with $\beta_0$ as the intercept and $\beta_1$ as the trend slope, $v(t) = \sum_{i=1}^k A_i \sin\left(2 \pi \frac{f_i t}{L}\right)$ is the seasonal component, where $A_i$ and $f_i$ are the amplitude and frequency of the $i$-th sinusoidal component, and $L$ denotes the total number of observations in the time series, and $\epsilon(s;t) \sim \mathcal{N}(0, \sigma^2)$. In this model, the trend component $\beta(s;t)$ accounts for systematic increases or decreases over time, while the seasonal component $v(s;t)$ accounts for periodic fluctuations influenced by seasonal factors. The noise component $\epsilon(s;t)$ reflects random variations in the observations. We define $\beta_1 \sim \mathrm{Uniform}(-1, 1)$, and $\beta_0 \sim \mathrm{Uniform}(0, 1)$. We set $k = 2$, indicating that the seasonality contains two sinusoidal components, where $A_i \sim \mathrm{Uniform}(1, 3)$ and $f_i \sim \mathrm{Uniform}(3, 6)$. Finally, we set $\sigma$ to 1.
+Here, $\beta(s;t) = \beta_0 + \beta_1 t$ is the trend component, with $\beta_0$ as the intercept and $\beta_1$ as the trend slope, $v(t) = \sum_{i=1}^k A_i \sin\left(2 \pi \frac{f_i t}{L}\right)$ is the seasonal component, where $A_i$ and $f_i$ are the amplitude and frequency of the $i$-th sinusoidal component, and $L$ denotes the total number of observations in the time series, and $\epsilon(s;t) \sim \mathcal{N}(0, \sigma^2)$. In this model, the trend component $\beta(s;t)$ accounts for systematic increases or decreases over time, while the seasonal component $v(s;t)$ accounts for periodic fluctuations influenced by seasonal factors. The noise component $\epsilon(s;t)$ reflects random variations in the observations. We define $\beta_1 \sim \mathrm{Uniform}(-1, 1)$, and $\beta_0 \sim \mathrm{Uniform}(0, 1)$. We set $k = 2$, indicating that the seasonality contains two sinusoidal components, where $A_i \sim \mathrm{Uniform}(1, 3)$ and $f_i \sim \mathrm{Uniform}(3, 6)$. Finally, we set $\sigma=1$.
 
 
-\subsubsection*{Time Sereis with I.I.D Gaussian Noise}
-A time series model with I.I.D Gaussian noise is one of the simplest stochastic models, which assumes that the observations are only affected by random fluctuations that are independent and identically distributed, according to a Gaussian distribution. This model can be expressed as:
+\subsubsection*{Time Series with Gaussian Noise}
+A time series model with iid Gaussian noise is one of the simplest stochastic models, which assumes that the observations are only affected by random fluctuations that are independent and identically distributed, according to a Gaussian distribution. This model can be expressed as:
 \begin{equation}
-	Y(s;t) = \mu(s) + \epsilon(s;t),
+	Y(s;t) = \epsilon(s;t).
 \end{equation}
-$\mu(s)$ is the mean level of the series at location $s$, $\epsilon(s;t) \sim \mathcal{N}(0, \sigma^2)$. We set $\mu\sim \mathcal{N}(0,1)$, and $\sigma=1$.
+Here, $\epsilon(s;t) \sim \mathcal{N}(0, \sigma^2)$ and we set $\sigma=1$.
 
 
 
 \subsection{Types of Anomalies}
-ST Anomalies can be pointwise or collective in time series, but tend to occur in a contiguous group in space. Thus, when we refer to point anomalies or collective anomalies, we refer to those with such behaviour in time series. 
+ST Anomalies can be pointwise or collective in time series but tend to occur in contiguous groups in space. Thus, when we refer to point anomalies or collective anomalies, we consider those with such behavior in time series. 
 
-To introduce point anomalies, we start by randomly selecting $20\%$ of all time points. For each selected time point, we first randomly select 3 random locations and randomly select a selected location and identify the nearest locations to include it in the selected set, and this process ends until the selected set covers $10\%$ of the spatial grid. A shock (anomaly intensity), which can be either positive or negative, is then applied to these selected locations to simulate an anomaly. 
+To introduce point anomalies, we start by randomly selecting $10\%$ of all time points. For each selected time point, we randomly select three random locations. Then, for each selected location, we identify and include its nearest locations until the selected set covers 10\% of the spatial grid. A shock (anomaly intensity), which can be either positive or negative, is applied to these selected locations to simulate an anomaly.
 
 
-For collective anomalies, instead of randomly selecting individual time points, collective anomalies cover continuous blocks of time steps and also affect groups of spatially contiguous locations. To generate these anomalies, we first determine a block size, usually between 3 and 5 time steps. A number of non-overlapping blocks are then selected. Within each block, the affected locations are selected using the same procedure as for point anomalies. Shocks are then applied to these selected points.
+For collective anomalies, instead of selecting individual time points randomly, collective anomalies cover continuous blocks of time steps and affect groups of spatially contiguous locations. To generate these anomalies, we first determine a block size of three time stamps. We then select a number of non-overlapping blocks. Within each block, the affected locations are chosen using the same procedure as for point anomalies. Shocks are then applied to these selected locations.
 
 Additionally, we set the magnitude of the shock to three levels: shock = 1 (low), shock = 2 (medium), and shock = 3 (high), indicating varying degrees of impact. We denote $\{\theta(s;t)\}$ as the anomaly indicator for $\{Y(s;t)\}$, where $\theta(s;t) = 1$ indicates that $Y(s;t)$ is an anomaly.
 
@@ -394,206 +424,81 @@ Additionally, we set the magnitude of the shock to three levels: shock = 1 (low)
 
 
 \subsection{Simulation Results}
-Under both short time series and long time series scenarios, we consider three types of time series, two anomaly types, and three shock magnitudes. We apply four anomaly detection methods: the statistical method, the NN-based method, the statistical method with LAWS, and the NN method with LAWS. We use the area under the curve (AUC) score to evaluate the performance of each method. Figure \ref{fig: simulation result} displays the results. For each combination of time series type, shock magnitude, anomaly type, and time series anomaly detection method, those incorporating LAWS consistently achieve higher AUC scores, averaging a 20\% improvement. This demonstrates that the LAWS method effectively utilizes spatial information and excels in detecting spatially contiguous anomalies. When comparing anomaly detection methods for time series with trends and seasonal patterns, the NN-based method consistently outperforms the statistical method across all shock levels and anomaly types. Specifically, for collective anomalies, the NN-based method significantly surpasses the statistical method. In the i.i.d. noise setting, both time-series anomaly detection methods perform similarly, making it difficult to determine which is superior. For AR(2), however, the statistical method slightly outperforms the NN-based method, possibly due to its accurate model specification.
+We conducted simulations under both short and long time series scenarios, considering three types of time series, two types of anomalies, and three shock magnitudes. Four anomaly detection methods were applied: the statistical method, the NN-based method, the statistical method with LAWS, and the NN-based method with LAWS. We evaluated the performance of each method using the area under the curve (AUC) score. Each setting was simulated five times, with the results averaged.
 
-In summary, the simulation results indicate that the LAWS procedure significantly enhances spatial anomaly detection. The NN-based method is robust across various time series types, whereas the statistical method also proves reliable, especially with simpler time series models.
+
+For the long time series scenario, we set the input size $H_{\mathrm{in}}=10$ and the output size $H_{\mathrm{out}}=1$. For the short time series scenario, we set both $H_{\mathrm{in}}=1$ and $H_{\mathrm{out}}=1$. In both scenarios, we train a single DLinear model for all locations.
+\subsubsection*{Long Time Series Scenario}
+Figure \ref{fig: simulation long time series} shows the results for the long time series scenario. For each combination of time series type, shock magnitude, anomaly type, and time series anomaly detection method, those incorporating LAWS consistently achieve higher AUC scores, averaging a 20\% improvement. This demonstrates that the LAWS method effectively utilizes spatial information and excels in detecting spatially contiguous anomalies. For time series with trends and seasonal patterns, the NN-based method consistently outperforms the statistical method across all shock levels and anomaly types, especially for collective anomalies. In the iid Gaussian noise and AR(2) settings, both methods perform similarly, making it hard to determine which is superior.
+
+\subsubsection*{Short Time Series Scenario}
+Figure \ref{fig: simulation short time series} shows the results for the short time series scenario. In the trend and seasonal pattern setting, both methods generally performed poorly, likely due to overfitting caused by the limited number of observations. In the other two settings, both methods perform similarly for point anomalies, but the NN-based method tends to perform better for collective anomalies. 
+
+
+
+In summary, the simulation results indicate that the LAWS procedure significantly enhances spatial anomaly detection. When comparing two time series anomaly detection methods, for complex time series that include trend and seasonality and are long enough to contain sufficient information, the NN-based method can capture patterns within the data because it is fully data-driven. The statistical method, on the other hand, may lack the flexibility for model specification and thus perform less accurately. When the time series is short or simple, the NN-based method can decrease the input size to reduce the risk of overfitting and achieve performance comparable to the statistical method.
+
 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../figure/simulation_result.png}
-    \caption{This figure assesses the performance of two time series anomaly detection methods: NN-based and Studentized Residual Outlier Test, under various conditions: trend and seasonal patterns, IID noise, and AR(2) processes. Both methods are evaluated for point and collective anomalies across shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. NN-based methods are depicted with circles, and Studentized Residual Outlier Test with squares. The presence of spatial anomaly detection by LAWS is indicated by green markers, while its absence is shown with red markers.}
-    \label{fig: simulation result}
+    \includegraphics[width=\textwidth]{../figure/simulation_long_time_series.png}
+    \caption{Long time series scenario. This figure assesses the performance of two time series anomaly detection methods: NN-based and Studentized Residual Outlier Test, under various conditions: trend and seasonal patterns, IID noise, and AR(2) processes. Both methods are evaluated for point and collective anomalies across shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. NN-based methods are depicted with circles, and Studentized Residual Outlier Test with squares. The presence of spatial anomaly detection by LAWS is indicated by green markers, while its absence is shown with red markers.}
+    \label{fig: simulation long time series}
 \end{figure}
 
-\subsection{Additional Simulation}
-The simulation conducted in the last section is general for We now conduct an additional simulation on a larger spatial grid and shorter time series, which is more similar to the real data we will be working on. For this simulation, we specifically focus on the algorithm's ability to detect different anomaly shapes and magnitudes. Let $\mathbb{D}_t = \{1, \ldots, 20\}$ and $\mathbb{D}_s = \{(x,y): x=1,\ldots,200, y=1,\ldots,200\}$. We define a subset $A \in \mathbb{D}_s \times \mathbb{D}_t$ as the location and time of potential anomalies. We set $\theta(s;t) = 1$ for $(s,t) \in A$ and $\theta(s;t) = 0$ for $(s,t) \in \mathbb{D}_s \times \mathbb{D}_t \setminus A$. We then generate $Y(s,t)$ using the following equation:
-\begin{equation}
-	Y(s;t) \sim [1-\theta(s;t)]\mathcal{N}(0, 1) + \theta(s;t)\mathcal{N}(\mu(s;t),1),
-\end{equation}
-where $\mu(s;t)$ represents the anomaly magnitude at location $s$ and time $t$.
 
-We consider various settings with different shapes of $A$ and anomaly magnitudes across space and time, as detailed in Table \ref{tab: configuration of anomaly}. Our two-step anomaly detection procedure is performed using the statistical method rather than the NN-based method for time series anomaly detection. The reasons are as follows: (1) There are 40,000 locations, which means training 40,000 individual models. This is impractical due to time constraints. (2) The time series consists of only 20 observations, which makes training with the NN-based method challenging. Additionally, as a forecasting-based method, the NN-based method requires historical data as input, meaning the first few steps cannot be identified as anomalies. Therefore, the statistical method is more appropriate for this scenario.
-
-We compare the standalone statistical method and the statistical method with the LAWS adjustment across all settings. Table \ref{tab: simulation_wildfire} shows the AUC scores for both methods across the four settings. The results demonstrate a significant improvement in anomaly detection accuracy with the LAWS adjustment, particularly when anomalies are spatially contiguous.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{../figure/simulation_short_time_series.png}
+    \caption{Short time series scenario. This figure assesses the performance of two time series anomaly detection methods: NN-based and Studentized Residual Outlier Test, under various conditions: trend and seasonal patterns, IID noise, and AR(2) processes. Both methods are evaluated for point and collective anomalies across shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. NN-based methods are depicted with circles, and Studentized Residual Outlier Test with squares. The presence of spatial anomaly detection by LAWS is indicated by green markers, while its absence is shown with red markers.}
+    \label{fig: simulation short time series}
+\end{figure}
 
 
+%
+%\subsection{Additional Simulation}
+%The simulation conducted in the last section is general for We now conduct an additional simulation on a larger spatial grid and shorter time series, which is more similar to the real data we will be working on. For this simulation, we specifically focus on the algorithm's ability to detect different anomaly shapes and magnitudes. Let $\mathbb{D}_t = \{1, \ldots, 20\}$ and $\mathbb{D}_s = \{(x,y): x=1,\ldots,200, y=1,\ldots,200\}$. We define a subset $A \in \mathbb{D}_s \times \mathbb{D}_t$ as the location and time of potential anomalies. We set $\theta(s;t) = 1$ for $(s,t) \in A$ and $\theta(s;t) = 0$ for $(s,t) \in \mathbb{D}_s \times \mathbb{D}_t \setminus A$. We then generate $Y(s,t)$ using the following equation:
+%\begin{equation}
+%	Y(s;t) \sim [1-\theta(s;t)]\mathcal{N}(0, 1) + \theta(s;t)\mathcal{N}(\mu(s;t),1),
+%\end{equation}
+%where $\mu(s;t)$ represents the anomaly magnitude at location $s$ and time $t$.
+%
+%We consider various settings with different shapes of $A$ and anomaly magnitudes across space and time, as detailed in Table \ref{tab: configuration of anomaly}. Our two-step anomaly detection procedure is performed using the statistical method rather than the NN-based method for time series anomaly detection. The reasons are as follows: (1) There are 40,000 locations, which means training 40,000 individual models. This is impractical due to time constraints. (2) The time series consists of only 20 observations, which makes training with the NN-based method challenging. Additionally, as a forecasting-based method, the NN-based method requires historical data as input, meaning the first few steps cannot be identified as anomalies. Therefore, the statistical method is more appropriate for this scenario.
+%
+%We compare the standalone statistical method and the statistical method with the LAWS adjustment across all settings. Table \ref{tab: simulation_wildfire} shows the AUC scores for both methods across the four settings. The results demonstrate a significant improvement in anomaly detection accuracy with the LAWS adjustment, particularly when anomalies are spatially contiguous.
+%
+%
 
 
 
 
 \section{Data Examples}\label{sec: real data analysis}
 \subsection{Wildfire Detection}
-The Sakha Republic, also known as Yakutia, is a vast region in the Russian Federation, characterized by its extreme climate. Wildfire detection in Sakha is of vital importance due to several factors. The region's vast forested areas, combined with its extreme climate, elevate the risk of wildfires, which can have devastating effects on the ecosystem and the local communities. Effective wildfire management and detection are crucial for minimizing damage and protecting lives and property. Our objective is to develop a spatial-temporal anomaly detection approach for wildfire detection. Our dataset spans from 2002 to 2021, with one image per year, each having dimensions of 278 by 229 pixels. These images represent the maximum Enhanced Vegetation Index (EVI) values observed during the peak growing season, as measured by the MODIS satellite system. Each pixel within an image, corresponding to a spatial resolution of 1km by 1km, captures the highest EVI reading for its respective location over the period from March 1st to September 30th of each year. Wildfires significantly reduce EVI values by causing vegetation loss and often affect large, interconnected areas. Our goal is to apply a two-step anomaly detection procedure to identify the times and locations with unusually low EVI values, which indicate the occurrence of the wildfire.
+The Sakha Republic, also known as Yakutia, is a vast region in the Russian Federation, characterized by its extreme climate. Wildfire detection in Sakha is of vital importance due to several factors. The region's vast forested areas, combined with its extreme climate, elevate the risk of wildfires, which can have devastating effects on the ecosystem and the local communities. Effective wildfire management and detection are crucial for minimizing damage and protecting lives and property. Our dataset spans from 2002 to 2021, with one image per year, each having dimensions of 278 by 229 pixels. These images represent the maximum Enhanced Vegetation Index (EVI) values observed during the peak growing season, as measured by the MODIS satellite system, see Figure \ref{fig: real data} Each pixel within an image, corresponding to a spatial resolution of 1km by 1km, captures the highest EVI reading for its respective location over the period from March 1st to September 30th of each year. Wildfires significantly reduce EVI values by causing vegetation loss and often affect large, interconnected areas. Our goal is to apply a two-step anomaly detection procedure to identify times and locations with unusually low EVI values, indicating the occurrence of wildfires in that year and locations.
 
-
-
-
-
-\begin{table}[ht]
+\begin{figure}[h!]
     \centering
-    \begin{tabularx}{\textwidth}{|l|X|}
-        \hline
-        \textbf{Setting} & \textbf{Configuration} \\
-        \hline
-        1 & The anomaly set \(A\) consists of rectangular regions across different spatial locations and time points, specifically: 
-        - Time point 8: Rectangles at \((136,172)-(166,200)\) and \((0,6)-(16,36)\).
-        - Time point 9: Rectangles at \((37,42)-(67,72)\) and \((176,172)-(200,200)\).
-        - Time point 12: Rectangles at \((134,145)-(164,175)\), \((142,33)-(172,63)\), and \((22,43)-(52,73)\).
-        - Time point 16: Rectangle at \((115,5)-(145,35)\).
-        - Time point 20: Rectangle at \((72,73)-(102,103)\).
-        - Time point 5: Rectangle at \((114,154)-(144,184)\).
-        Each rectangle is defined by its lower-left and upper-right corners \((x_1,y_1)-(x_2,y_2)\) and the specific time point.
-        \(\mu(s;t)=2\). \\
-        \hline
-        2 & Same configuration as Simulation 1, but \(\mu(s;t)=1\). \\
-        \hline
-        3 & The anomaly set \(A = A_1 \cup A_2 \cup A_3\), where \(A_i\) consists of rectangular regions across different spatial locations and time points. The anomaly magnitude \(\mu(s;t)\) within each \(A_i\) is different:
-        - For \(A_1\): Time points 8, 12, and 16, with rectangles at \((136,172)-(166,200)\), \((134,145)-(164,175)\), and \((115,5)-(145,35)\). \(\mu(s;t)=1\).
-        - For \(A_2\): Time points 8, 9, and 20, with rectangles at \((0,6)-(16,36)\), \((37,42)-(67,72)\), and \((72,73)-(102,103)\). \(\mu(s;t)=1.5\).
-        - For \(A_3\): Time point 12 with rectangles at \((142,33)-(172,63)\), \((22,43)-(52,73)\), and time point 5 with a rectangle at \((114,154)-(144,184)\), and time point 9 with a rectangle at \((176,172)-(200,200)\). \(\mu(s;t)=2\). \\
-        \hline
-        4 & Anomalies form circular shapes at specific spatial locations and time points:
-        - Time point 8: Circles centered at \((121,103)\) and \((99,52)\) with radius 20.
-        - Time point 9: Circle centered at \((116,149)\) with radius 20.
-        - Time point 12: Circle centered at \((87,130)\) with radius 20.
-        - Time point 16: Circle centered at \((74,151)\) with radius 20.
-        Each circle is defined by its center \((x_c,y_c)\) and the equation \((x-x_c)^2+(y-y_c)^2 \leq 400\). \(\mu(s;t)=2\). \\
-        \hline
-    \end{tabularx}
-    \caption{Configuration of Potential Anomalous Regions in Different Wildfire Simulation Settings}
-    \label{tab: configuration of anomaly}
-\end{table}
+    \includegraphics[width=\textwidth]{../figure/raw_data}
+    \caption{Visualization of the raw max summertime EVI from 2002-2021. }
+    \label{fig: real data}
+\end{figure}
 
-
-
-
-\begin{table}[htbp]
-    \centering
-    \begin{tabular}{|c|c|c|c|}
-        \hline
-        Setting  & LAWS Adjustment & AUC \\
-        \hline
-        1 & No & 0.82 \\
-        1 & Yes & 0.99 \\
-        2 & No & 0.63 \\
-        2 & Yes & 0.95 \\
-        3 & No & 0.73 \\
-        3 & Yes & 0.96 \\
-        4 & No & 0.82 \\
-        4 & Yes & 0.99 \\
-        \hline
-    \end{tabular}
-    \caption{Comparison of Time-series Anomaly Detection Alone versus with LAWS Adjustment on Different Wildfire Simulation Settings}
-    \label{tab: simulation_wildfire}
-\end{table}
-
-%
-%
-%% simulation figures
-%\begin{figure}[H]
-%     \centering
-%     
-%      \begin{subfigure}[b]{0.45\textwidth}
-%		\centering
-%		\includegraphics[width=\textwidth]{../figure/setting1.png}
-%		\caption{}
-%	 \end{subfigure}
-%         \hfill
-%      \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting1_no_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     
-%     \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting1_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     \caption{Simulation 1: (a) The spatio-temporal observations. (b) anomaly detection by location-wise time-series outlier test. (c) anomaly detection by LAWS.}
-%      \label{fig:setting1}
-%\end{figure}
-%
-%
-%\begin{figure}[H]
-%     \centering
-%     
-%      \begin{subfigure}[b]{0.45\textwidth}
-%		\centering
-%		\includegraphics[width=\textwidth]{../figure/setting2.png}
-%		\caption{}
-%	 \end{subfigure}
-%         \hfill
-%      \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting2_no_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%
-%     \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting2_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     \caption{Simulation 2: (a) The spatio-temporal observations. (b) anomaly detection by location-wise time-series outlier test. (c) anomaly detection by LAWS.}
-%      \label{fig:setting2}
-%\end{figure}
-%
-%\begin{figure}[H]
-%     \centering
-%      \begin{subfigure}[b]{0.45\textwidth}
-%		\centering
-%		\includegraphics[width=\textwidth]{../figure/setting3.png}
-%		\caption{}
-%	 \end{subfigure}
-%         \hfill
-%      \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting3_no_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     
-%     \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting3_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     \caption{Simulation 3: (a) The spatio-temporal observations. (b) anomaly detection by location-wise time-series outlier test. (c) anomaly detection by LAWS.}
-%      \label{fig:setting3}
-%\end{figure}
-%
-%
-%
-%\begin{figure}[H]
-%     \centering
-%     
-%      \begin{subfigure}[b]{0.45\textwidth}
-%		\centering
-%		\includegraphics[width=\textwidth]{../figure/setting4.png}
-%		\caption{}
-%	 \end{subfigure}
-%         \hfill
-%      \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting4_no_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%  
-%     \begin{subfigure}[b]{0.45\textwidth}
-%         \includegraphics[width=\textwidth]{../figure/setting4_laws.png}
-%         \caption{}
-%     \end{subfigure}
-%     \caption{Simulation 4: (a) The spatio-temporal observations. (b) anomaly detection by location-wise time-series outlier test. (c) anomaly detection by LAWS.}
-%      \label{fig:setting4}
-%\end{figure}
 
 
 \subsection{Actual Data Example}
-For the analysis of the real dataset, $\mathbb{D}_t=\{1, \ldots, 20\}$ and $\mathbb{D}_s=\{(x, y), 1 \leq x \leq 278, 1 \leq y \leq 229\}$. Based on the simulation result, when the time series is not long enough, the NN-based method does not work well. Thus, we apply the statistical time series anomaly detection method with LAWS adjustment to this dataset. It's important to note that here, we only consider the extremely low EVI values as anomlies. Thus, we can slightly change the two-sided p-value, equation (\ref{eq: p-value}) to the one-sided p-value, which is the following.
+For the analysis of the real dataset, $\mathbb{D}_t=\{1, \ldots, 20\}$ and $\mathbb{D}_s=\{(x, y), 1 \leq x \leq 278, 1 \leq y \leq 229\}$. We apply both the NN-based and the statistical methods, with and without LAWS adjustment. Given the short time series, for the NN-based method, we set $H_{\mathrm{in}}=1$ and $H_{out}=1$ and train a single DLinear model for all locations. For all methods, we set the p-value threshold $\alpha=0.05$.
 
+ It's important to note that we consider unusually low EVI values as indicative of potential fire events. Since the residual is the predicted value minus the actual value, unusually low EVI values result in unusually large residuals. Therefore, we only focus on large residuals. To accommodate this, we adjust the two-sided p-value used in Algorithm \ref{alg: convert errors to p-values} and Equation (\ref{eq: p-value}) to a one-sided p-value, defined as follows:
 \begin{equation}\label{eq: one-sided p-value}
-	p(s;t)= \Phi_{L-5}\{Z(s;t)\}.
+	p(s;t)= 1-\Phi_{L-5}\{Z(s;t)\}.
 \end{equation}
 
-The results are visualized in Figure \ref{fig:real_data}. The statistical method with LAWS adjustment effectively identifies contiguous regions as anomalies and shows greater robustness against noise than the standalone statistical method.
 
 
+The results for the NN-based method and the statistical method are shown in Figure \ref{fig: nn_real_data} and Figure \ref{fig: statistical_method_real_data}, respectively. The left panel in each figure shows fire detection by the standalone NN-based method, while the right panel includes the LAWS adjustment. In these figures, black areas represent detected ST anomalies, indicating wildfire occurrences.
 
-
+The standalone versions of both methods show many scattered detections over the years. Since wildfires typically affect contiguous regions, these detections might be due to random errors. Additionally, both methods detected large areas of fire in 2013 and 2020, which, despite the lack of true fire occurrence data, seem dubious and might represent false alarms. With the LAWS adjustment, both methods prefer identifying contiguous regions as anomalies, aligning with the idea that wildfires affect continuous areas and demonstrating better robustness against noise compared to the standalone methods.
 
 
 
@@ -602,23 +507,93 @@ The results are visualized in Figure \ref{fig:real_data}. The statistical method
      
       \begin{subfigure}[b]{0.45\textwidth}
 		\centering
-		\includegraphics[width=\textwidth]{../figure/raw_data.png}
+		\includegraphics[width=\textwidth]{../figure/nn_no_laws.png}
 		\caption{}
 	 \end{subfigure}
          \hfill
       \begin{subfigure}[b]{0.45\textwidth}
-         \includegraphics[width=\textwidth]{../figure/no_laws.png}
+         \includegraphics[width=\textwidth]{../figure/nn_laws.png}
          \caption{}
      \end{subfigure}
+         \caption{Wildfire detection using the NN-based method. (a) Without LAWS adjustment, showing scattered detections that might include random errors. (b) With LAWS adjustment, focusing on contiguous regions, demonstrating improved robustness against noise and better alignment with the behavior of wildfires, which affect continuous areas. Black areas represent detected spatiotemporal anomalies, indicating potential wildfire occurrences.}
+      \label{fig: nn_real_data}
+\end{figure}
+
+
+
+\begin{figure}[H]
+     \centering
      
       \begin{subfigure}[b]{0.45\textwidth}
-         \includegraphics[width=\textwidth]{../figure/laws.png}
+		\centering
+		\includegraphics[width=\textwidth]{../figure/statistical_method_no_laws}
+		\caption{}
+	 \end{subfigure}
+         \hfill
+      \begin{subfigure}[b]{0.45\textwidth}
+         \includegraphics[width=\textwidth]{../figure/statistical_method_laws}
          \caption{}
      \end{subfigure}
-
-     \caption{(a) Visualization of the raw max summertime EVI from 2002-2021. (b) Fire detection by standalone statistical time series anomaly detection method. (c) Fire detection by statistical method plus LAWS adjustment. Black-colored areas indicate detected wildfires within a specific year.}
-      \label{fig:real_data}
+         \caption{Wildfire detection using the statistical method. (a) Without LAWS adjustment, showing scattered detections that might include random errors. (b) With LAWS adjustment, focusing on contiguous regions, demonstrating improved robustness against noise and better alignment with the behavior of wildfires, which affect continuous areas. Black areas represent detected spatiotemporal anomalies, indicating potential wildfire occurrences.}
+      \label{fig: statistical_method_real_data}
 \end{figure}
+
+
+%\begin{figure}[H]
+%     \centering
+%     
+%      \begin{subfigure}[b]{0.45\textwidth}
+%		\centering
+%		\includegraphics[width=\textwidth]{../figure/raw_data.png}
+%		\caption{}
+%	 \end{subfigure}
+%         \hfill
+%      \begin{subfigure}[b]{0.45\textwidth}
+%         \includegraphics[width=\textwidth]{../figure/laws_0.05.png}
+%         \caption{}
+%     \end{subfigure}
+%     \hfill
+%      \begin{subfigure}[b]{0.45\textwidth}
+%         \includegraphics[width=\textwidth]{../figure/laws_0.1.png}
+%         \caption{}
+%      \end{subfigure}
+%      \hfill
+%       \begin{subfigure}[b]{0.45\textwidth}
+%        \includegraphics[width=\textwidth]{../figure/laws_0.2.png}
+%       \caption{}
+%      \end{subfigure}
+%     \caption{(a) Visualization of the raw max summertime EVI from 2002-2021. (b) Fire detection by standalone statistical time series anomaly detection method. (c) Fire detection by statistical method plus LAWS adjustment. Black-colored areas indicate detected wildfires within a specific year.}
+%      \label{fig:real_data}
+%\end{figure}
+
+%
+%\begin{figure}[H]
+%     \centering
+%     
+%      \begin{subfigure}[b]{0.45\textwidth}
+%		\centering
+%		\includegraphics[width=\textwidth]{../figure/raw_data.png}
+%		\caption{}
+%	 \end{subfigure}
+%         \hfill
+%      \begin{subfigure}[b]{0.45\textwidth}
+%         \includegraphics[width=\textwidth]{../figure/no_laws_0.05.png}
+%         \caption{}
+%     \end{subfigure}
+%     \hfill
+%      \begin{subfigure}[b]{0.45\textwidth}
+%         \includegraphics[width=\textwidth]{../figure/no_laws_0.1.png}
+%         \caption{}
+%      \end{subfigure}
+%      \hfill
+%       \begin{subfigure}[b]{0.45\textwidth}
+%        \includegraphics[width=\textwidth]{../figure/no_laws_0.2.png}
+%       \caption{}
+%      \end{subfigure}
+%     \caption{(a) Visualization of the raw max summertime EVI from 2002-2021. (b) Fire detection by standalone statistical time series anomaly detection method. (c) Fire detection by statistical method plus LAWS adjustment. Black-colored areas indicate detected wildfires within a specific year.}
+%      \label{fig:real_data}
+%\end{figure}
+%
 
 
 
@@ -634,23 +609,23 @@ In this study, we develop an innovative two-step approach for spatiotemporal ras
 \clearpage
 
 \appendix
-\section*{Appendix A: Commonly Used Time Series Models for Anomaly Detection}\
+\section{Commonly Used Time Series Models for Anomaly Detection}
 
-\textit{Autoregressive Model (AR).} AR is a linear model where the current value $X_t$ is based on a finite set of previous values of length $p$ and error terms $\epsilon_t$. A common form AR$(p)$ model is:
+\textit{Autoregressive Model (AR).} AR is a linear model where the current value $X(t)$ is based on a finite set of previous values of length $p$ and error terms $\epsilon(t)$. A common form AR$(p)$ model is:
 
 \begin{equation}\label{eq:ar}
-	X_t = a_0 + \sum_{i=1}^{p}a_iX_{t-i} + \epsilon_t.
+	X(t) = a_0 + \sum_{i=1}^{p}a_iX(t-i) + \epsilon(t).
 \end{equation}
-Here, the error values $\epsilon_t$ are assumed to be independent and identically distributed with mean 0 and variance $\sigma$. Denote $\hat{a}_0,\ldots, \hat{a}^p$ to be the least squared estimates of $a_0,\ldots, a_p$. Thus, the remainder,  at time $t$ is $R_t=\hat{a}_0 + \sum_{i=1}^{p}\hat{a}_iX_{t-i} - X_t$.
+Here, the error values $\epsilon_t$ are assumed to be independent and identically distributed with mean 0 and variance $\sigma$. Denote $\hat{a}_0,\ldots, \hat{a}^p$ to be the least squared estimates of $a_0,\ldots, a_p$. Thus, the remainder,  at time $t$ is $R(t)=\hat{a}_0 + \sum_{i=1}^{p}\hat{a}_iX(t-i) - X(t)$.
 
-\textit{Moving Average Model (MA).} The moving average model (MA) considers that the current observation $X_t$ is a linear combination of the last $q$ prediction errors $\{\epsilon_t,\ldots,\epsilon_{t-q}\}$. A common form of MA$(q)$ model is:
+\textit{Moving Average Model (MA).} The moving average model (MA) considers that the current observation $X(t)$ is a linear combination of the last $q$ prediction errors $\{\epsilon(t),\ldots,\epsilon(t-q)\}$. A common form of MA$(q)$ model is:
 \begin{equation}
-	X_t = a_0+\sum_{i=1}^q a_i\epsilon_{t-i}+\epsilon_t
+	X(t) = a_0+\sum_{i=1}^q a_i\epsilon(t-i)+\epsilon(t)
 \end{equation}
 
 \textit{Autoregressive Moving Average Model (ARMA).} ARMA model is the combination of AR and MA, and the basic form ARMA$(p,q)$ is:
 \begin{equation}
-	X_t = \sum_{i=1}^{p}a_iX_{t-i}+\sum_{i=1}^{q}b_i\epsilon_{t-i}+\epsilon_t
+	X(t) = \sum_{i=1}^{p}a_iX(t-i)+\sum_{i=1}^{q}b_i\epsilon(t-i)+\epsilon(t)
 \end{equation}
 
 \textit{ARIMA Model.} The ARIMA model is a generalization of the ARMA model and is often used when the time series data is non-stationary. In addition to the $p$ and $q$ parameters in the ARMA model, it also has a $d$ parameter which defines the number of times the time series is differenced. 
@@ -658,7 +633,7 @@ Here, the error values $\epsilon_t$ are assumed to be independent and identicall
 \textit{Simple Exponential Smoothing (SES).} Simple exponential smoothing uses a non-linear approach by taking the previous time-series data to predict, and assigning exponential weights to the observations:
 
 \begin{equation}
-	X_{t+1}=\alpha X_t+\alpha(1-\alpha)X_{t-1}+\alpha(1-\alpha)^2X_{t-2}+\ldots+\alpha(1-\alpha)^N X_{t-N}.
+	X(t+1)=\alpha X(t)+\alpha(1-\alpha)X(t-1)+\alpha(1-\alpha)^2X(t-2)+\ldots+\alpha(1-\alpha)^N X(t-N).
 \end{equation}
 
 %\textit{Collective and Point Anomalies (CAPA).} \citet{fisch2018linear} discussed a Collective and Point Anomalies (CAPA) algorithm focusing on collective anomalies detection. It assumes that the data $x_1,\ldots, x_n$ follow a parametric epidemic change-point model with a probability density function $f(x_t,\theta(t))$, and 
@@ -682,7 +657,7 @@ Here, the error values $\epsilon_t$ are assumed to be independent and identicall
 %
 %\textit{Multivariate Collective And Point Anomalies (MVCAPA).} This algorithm is a multivariate version of CAPA. It assumes that the $p$ components of the time series are independent of one another in all aspects except the locations of collective anomalies, which can affect any subset of the components. (see \citet{fisch2021subset} for more details)
 
-\section*{Details of Kulldorff's Spatial Scan and Neil's Fast Subset Scan}
+\section{Details of Kulldorff's Spatial Scan and Neil's Fast Subset Scan}
 \textit{Kulldorff's Spatial Scan.}
 The scan statistic was originally presented by \citet{naus1965distribution} to address the multiple testing problem. However, it is restricted to finding a fixed-size anomalous region. \citet{kulldorff1995spatial} proposed a spatial scan statistic, which extends the original scan statistic to detect variable size regions. In Kulldorff's formulation, we have a count $c_i$ and a population $p_i$ at each location $s_i$, and each count $c_i$ follows a Poisson distribution with mean $q_ip_i$, where $q_i$ is the unknown risk. Then, the spatial scan statistic tries to detect spatial regions where $q_i$ are significantly higher (or lower) inside the region than that outside the region. More precisely,  the null hypothesis $H_0$ is $c_i\sim \mbox{Poisson}(q_{0}p_i)$ for all locations $s_i$, and the alternative hypothesis $H_1(S)$ is that there exists a region $S$, where $c_i\sim \mbox{Poisson}(q_{in}p_i)$ for all locations $s_i$ in $S$, and $c_i\in \mbox{Poisson}(q_{out}p_i)$ for all locations $s_i$ outside $S$.  The likelihood ratio test for any region $S$ is 
 \begin{equation}
