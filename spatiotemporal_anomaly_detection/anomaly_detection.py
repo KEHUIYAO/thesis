@@ -170,7 +170,7 @@ def time_series_anomaly_detection(anomalous_data, horizon=1, input_size=1, one_s
 
 
 
-def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='gaussian'):
+def laws_procedure(p_values, locations, alpha=0.05, tau=0.1, h=5, kernel='gaussian'):
     """
     Implements the LAWS procedure for False Discovery Rate (FDR) control using spatial information
     and adaptive thresholding.
@@ -181,7 +181,7 @@ def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='
 
     Args:
         p_values (array_like): An array of original p-values at each location.
-        distance_matrix (array_like): A matrix representing distances between locations, used to estimate sparsity levels.
+        locations (array_like): A 2d array of location coordinates.
         alpha (float or list, optional): The threshold level(s) for controlling FDR. Default is 0.05.
         tau (float, optional): A parameter used in the estimation of sparsity levels. Default is 0.1.
         h (int, optional): The bandwidth parameter used in the kernel density estimation. Default is 5.
@@ -190,17 +190,10 @@ def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='
     Returns:
         array_like or list of arrays: A binary array or a list of binary arrays of the same dimension as p_values, where positions with detected signals
                                      are marked as 1, and others as 0.
-
-    Example:
-        >>> p_values = np.random.rand(100)
-        >>> distance_matrix = np.random.rand(100, 100)
-        >>> results = laws_procedure(p_values, distance_matrix, alpha=[0.05, 0.1])
-        >>> for result in results:
-        ...     print(result)
     """
 
     # calculate the sparsity level
-    pis = sparsity_estimation_via_distance_matrix(p_values, distance_matrix, tau=tau, h=h, kernel=kernel)
+    pis = sparsity_estimation_via_distance_matrix(p_values, locations, tau=tau, h=h, kernel=kernel)
     weights = pis / (1 - pis)
 
     # calculate weighted p-values
@@ -237,12 +230,7 @@ def laws_procedure(p_values, distance_matrix, alpha=0.05, tau=0.1, h=5, kernel='
     return output_list
 
 
-def sparsity_estimation_via_distance_matrix(p_values, dist=None, tau=0.1, h=5, kernel='gaussian'):
-
-    n_locations = len(p_values)
-    grid_size = int(np.sqrt(n_locations))
-    locations = np.array([(i // grid_size, i % grid_size) for i in range(grid_size ** 2)])
-
+def sparsity_estimation_via_distance_matrix(p_values, locations, tau=0.1, h=5, kernel='gaussian'):
     kd_tree = sklearn.neighbors.KDTree(locations)
     sum_vs = kd_tree.kernel_density(locations, h=h, kernel=kernel)
 
@@ -262,7 +250,7 @@ def sparsity_estimation_via_distance_matrix(p_values, dist=None, tau=0.1, h=5, k
 
 
 
-def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True,**kwargs):
+def spatiotemporal_anomaly_detection(anomalous_data, locations, ts='NN', laws=True,**kwargs):
     """
     Detects spatiotemporal anomalies in a dataset. This function first apply time series anomaly detection to obtain p-values. It then applies
     the LAWS procedure with a list of defined alpha thresholds to these p-values to identify anomalies.
@@ -271,7 +259,7 @@ def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True,**
         anomalous_data (numpy.ndarray): A 2D array with shape (n_locations, n_steps) containing
             the data where anomalies are to be detected. Each row represents a location and each
             column a time step.
-        dist (numpy.ndarray): A 2D array with shape (n_locations, n_locations) containing the distances
+        locations (numpy.ndarray): A 2D array with shape (n_locations, 2) containing the spatial coordinates.
         ts (str): The type of time series anomaly detection method to use. Default is 'NN' (neural network).
         laws (bool): A flag indicating whether to apply the LAWS procedure to acknowledge the spatial
             information. Default is True.
@@ -304,7 +292,7 @@ def spatiotemporal_anomaly_detection(anomalous_data, dist, ts='NN', laws=True,**
 
     if laws:
         for i in range(n_steps):
-            res[:, :, i] = laws_procedure(p_values[:, i], dist, alpha=alpha_list)
+            res[:, :, i] = laws_procedure(p_values[:, i], locations, alpha=alpha_list)
     else:
         for i in range(len(alpha_list)):
             res[i] = p_values < alpha_list[i]
