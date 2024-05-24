@@ -193,7 +193,7 @@ def laws_procedure(p_values, locations, alpha=0.05, tau=0.1, h=5, kernel='gaussi
     """
 
     # calculate the sparsity level
-    pis = sparsity_estimation_via_distance_matrix(p_values, locations, tau=tau, h=h, kernel=kernel)
+    pis = sparsity_estimation(p_values, locations, tau=tau, h=h, kernel=kernel)
     weights = pis / (1 - pis)
 
     # calculate weighted p-values
@@ -230,7 +230,7 @@ def laws_procedure(p_values, locations, alpha=0.05, tau=0.1, h=5, kernel='gaussi
     return output_list
 
 
-def sparsity_estimation_via_distance_matrix(p_values, locations, tau=0.1, h=5, kernel='gaussian'):
+def sparsity_estimation(p_values, locations, tau=0.1, h=5, kernel='gaussian'):
     kd_tree = sklearn.neighbors.KDTree(locations)
     sum_vs = kd_tree.kernel_density(locations, h=h, kernel=kernel)
 
