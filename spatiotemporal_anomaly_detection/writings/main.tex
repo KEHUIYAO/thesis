@@ -380,7 +380,7 @@ Under mild conditions, the procedure is guaranteed to control the false discover
 \section{Simulation Study}\label{sec: simulation}
 In this section, we conduct a simulation study to evaluate the performance of our two-step anomaly detection method for the ST raster data. We consider both short and long time series, with $\mathbb{D}_t=\{1,\ldots,20\}$ and $\mathbb{D}_t=\{1,\ldots,500\}$, respecitvely. There are two reasons for including short time series: first, the  real data we are analyzing consists of only 20 observations per time series; second, we aim to assess how the performance of the NN-based method changes when the data ranges from sparse to abundant.
 
-For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (iid) Gaussian noise. We also examine both point and collective anomalies in time series that are contiguous in space, with varying anomaly magnitudes. In each simulation, $\mathbb{D}_s$ is assumed to be a $100\times 100$ grid. 
+For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (IID) Gaussian noise. We also examine both point and collective anomalies in time series that are contiguous in space, with varying anomaly magnitudes. In each simulation, $\mathbb{D}_s$ is assumed to be a $100\times 100$ grid. 
 
 To generate the ST raster data $\{Y(s;t)\}$, we first select a type of time series and then generate the corresponding time series data for all locations within the grid. For simplicity, we do not consider the spatial correlation when generating the raster data. 
 
@@ -402,7 +402,7 @@ Here, $\beta(s;t) = \beta_0 + \beta_1 t$ is the trend component, with $\beta_0$ 
 
 
 \subsubsection*{Time Series with Gaussian Noise}
-A time series model with iid Gaussian noise is one of the simplest stochastic models, which assumes that the observations are only affected by random fluctuations that are independent and identically distributed, according to a Gaussian distribution. This model can be expressed as:
+A time series model with IID Gaussian noise is one of the simplest stochastic models, which assumes that the observations are only affected by random fluctuations that are independent and identically distributed, according to a Gaussian distribution. This model can be expressed as:
 \begin{equation}
 	Y(s;t) = \epsilon(s;t).
 \end{equation}
@@ -429,7 +429,7 @@ We conducted simulations under both short and long time series scenarios, consid
 
 For the long time series scenario, we set the input size $H_{\mathrm{in}}=10$ and the output size $H_{\mathrm{out}}=1$. For the short time series scenario, we set both $H_{\mathrm{in}}=1$ and $H_{\mathrm{out}}=1$. In both scenarios, we train a single DLinear model for all locations.
 \subsubsection*{Long Time Series Scenario}
-Figure \ref{fig: simulation long time series} shows the results for the long time series scenario. For each combination of time series type, shock magnitude, anomaly type, and time series anomaly detection method, those incorporating LAWS consistently achieve higher AUC scores, averaging a 20\% improvement. This demonstrates that the LAWS method effectively utilizes spatial information and excels in detecting spatially contiguous anomalies. For time series with trends and seasonal patterns, the NN-based method consistently outperforms the statistical method across all shock levels and anomaly types, especially for collective anomalies. In the iid Gaussian noise and AR(2) settings, both methods perform similarly, making it hard to determine which is superior.
+Figure \ref{fig: simulation long time series} shows the results for the long time series scenario. For each combination of time series type, shock magnitude, anomaly type, and time series anomaly detection method, those incorporating LAWS consistently achieve higher AUC scores, averaging a 20\% improvement. This demonstrates that the LAWS method effectively utilizes spatial information and excels in detecting spatially contiguous anomalies. For time series with trends and seasonal patterns, the NN-based method consistently outperforms the statistical method across all shock levels and anomaly types, especially for collective anomalies. In the IID Gaussian noise and AR(2) settings, both methods perform similarly, making it hard to determine which is superior.
 
 \subsubsection*{Short Time Series Scenario}
 Figure \ref{fig: simulation short time series} shows the results for the short time series scenario. In the trend and seasonal pattern setting, both methods generally performed poorly, likely due to overfitting caused by the limited number of observations. In the other two settings, both methods perform similarly for point anomalies, but the NN-based method tends to perform better for collective anomalies. 
@@ -443,7 +443,7 @@ In summary, the simulation results indicate that the LAWS procedure significantl
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{../figure/simulation_long_time_series.png}
-    \caption{Long time series scenario. This figure assesses the performance of two time series anomaly detection methods: NN-based and Studentized Residual Outlier Test, under various conditions: trend and seasonal patterns, IID noise, and AR(2) processes. Both methods are evaluated for point and collective anomalies across shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. NN-based methods are depicted with circles, and Studentized Residual Outlier Test with squares. The presence of spatial anomaly detection by LAWS is indicated by green markers, while its absence is shown with red markers.}
+    \caption{Performance comparison of two time series anomaly detection methods in long time series scenarios. The methods compared are: a neural network-based method (NN, represented by circles) and the Studentized Residual Outlier Test (represented by squares). The performance is evaluated under different conditions: trend with seasonal patterns, IID noise, and AR(2) processes. The detection is assessed for both point anomalies and collective anomalies, across different shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. Red markers indicate the presence of spatial anomaly detection using LAWS, while blue markers indicate its absence.}
     \label{fig: simulation long time series}
 \end{figure}
 
@@ -451,7 +451,7 @@ In summary, the simulation results indicate that the LAWS procedure significantl
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{../figure/simulation_short_time_series.png}
-    \caption{Short time series scenario. This figure assesses the performance of two time series anomaly detection methods: NN-based and Studentized Residual Outlier Test, under various conditions: trend and seasonal patterns, IID noise, and AR(2) processes. Both methods are evaluated for point and collective anomalies across shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. NN-based methods are depicted with circles, and Studentized Residual Outlier Test with squares. The presence of spatial anomaly detection by LAWS is indicated by green markers, while its absence is shown with red markers.}
+    \caption{Performance comparison of two time series anomaly detection methods in short time series scenarios. The methods compared are: a neural network-based method (NN, represented by circles) and the Studentized Residual Outlier Test (represented by squares). The performance is evaluated under different conditions: trend with seasonal patterns, IID noise, and AR(2) processes. The detection is assessed for both point anomalies and collective anomalies, across different shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. Red markers indicate the presence of spatial anomaly detection using LAWS, while blue markers indicate its absence.}
     \label{fig: simulation short time series}
 \end{figure}
 
@@ -480,7 +480,7 @@ The Sakha Republic, also known as Yakutia, is a vast region in the Russian Feder
 \begin{figure}[h!]
     \centering
     \includegraphics[width=\textwidth]{../figure/raw_data}
-    \caption{Visualization of the raw max summertime EVI from 2002-2021. }
+    \caption{Visualization of the raw max summertime EVI from 2002-2021. Each image corresponds to the maximum Enhanced Vegetation Index (EVI) observed during the peak growing season (March 1st to September 30th) for Yakutia. The figure is organized into a grid with four rows and five columns, with each cell representing a specific year within the 20-year period. The grayscale intensity in each image indicates the EVI values, where lighter shades represent lower vegetation density, and darker shades represent higher vegetation density.}
     \label{fig: real data}
 \end{figure}
 
@@ -515,7 +515,7 @@ The standalone versions of both methods show many scattered detections over the 
          \includegraphics[width=\textwidth]{../figure/nn_laws.png}
          \caption{}
      \end{subfigure}
-         \caption{Wildfire detection using the NN-based method. (a) Without LAWS adjustment, showing scattered detections that might include random errors. (b) With LAWS adjustment, focusing on contiguous regions, demonstrating improved robustness against noise and better alignment with the behavior of wildfires, which affect continuous areas. Black areas represent detected spatiotemporal anomalies, indicating potential wildfire occurrences.}
+         \caption{Wildfire detection using the NN-based method. Black areas represent detected ST anomalies. (a) Without LAWS adjustment. (b) With LAWS adjustment.}
       \label{fig: nn_real_data}
 \end{figure}
 
@@ -534,7 +534,7 @@ The standalone versions of both methods show many scattered detections over the 
          \includegraphics[width=\textwidth]{../figure/statistical_method_laws}
          \caption{}
      \end{subfigure}
-         \caption{Wildfire detection using the statistical method. (a) Without LAWS adjustment, showing scattered detections that might include random errors. (b) With LAWS adjustment, focusing on contiguous regions, demonstrating improved robustness against noise and better alignment with the behavior of wildfires, which affect continuous areas. Black areas represent detected spatiotemporal anomalies, indicating potential wildfire occurrences.}
+         \caption{Wildfire detection using the statistical method. Black areas represent detected ST anomalies. (a) Without LAWS adjustment. (b) With LAWS adjustment.}
       \label{fig: statistical_method_real_data}
 \end{figure}
 
