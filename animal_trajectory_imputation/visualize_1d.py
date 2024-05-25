@@ -204,6 +204,8 @@ fig.tight_layout(pad=3.0)  # Adjust the pad parameter as needed
 plt.savefig(f'./results/aug/{deer_id}/{model}/prediction.png', dpi=300)
 plt.savefig(f'./figure/{deer_id}_4_hour_trajectory_imputation.png', dpi=300)
 
-
-
 plt.close()
+
+
+
+
