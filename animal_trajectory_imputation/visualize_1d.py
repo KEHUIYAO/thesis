@@ -7,6 +7,18 @@ deer_id_list = [5094]
 model_list = ['csdi', 'interpolation', 'crawl']
 missing_percent_list = [20, 50, 80]
 
+def generate_non_overlapping_intervals(L, B, offset):
+    if B * offset > L:
+        raise ValueError(f'B * offset ({B * offset}) must be less than L ({L})')
+    starts = []
+    end = 0
+    for i in range(B):
+        # generate integer from end to L - (B-i) * offset
+        start = rng.integers(end, L - (B - i) * offset)
+        end = start + offset
+        starts.append(start)
+    return np.array(starts)
+
 # if there is no figure folder, create one
 if not os.path.exists('./figure'):
     os.makedirs('./figure')
@@ -68,13 +80,7 @@ for deer_id in deer_id_list:
             # set seed 42
             rng = np.random.default_rng(42)
 
-            # Calculate the maximum possible start index to ensure non-overlapping
-            max_start = all_target_np.shape[0] - offset * B
-
-            # Generate non-overlapping start points
-            starts = np.sort(rng.choice(np.arange(0, max_start), size=B, replace=False))
-            starts = np.array(
-                [start * offset for start in range(len(starts))])  # Ensure non-overlapping by multiplying by offset
+            starts = generate_non_overlapping_intervals(all_target_np.shape[0], B, offset)
 
             fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 15))
 
@@ -158,13 +164,12 @@ markersize = 2
 # set seed 42
 rng = np.random.default_rng(42)
 
-# Calculate the maximum possible start index to ensure non-overlapping
-max_start = all_target_np.shape[0] - offset * B
+
 
 # Generate non-overlapping start points
-starts = np.sort(rng.choice(np.arange(0, max_start), size=B, replace=False))
-starts = np.array(
-    [start * offset for start in range(len(starts))])  # Ensure non-overlapping by multiplying by offset
+
+
+starts = generate_non_overlapping_intervals(all_target_np.shape[0], B, offset)
 
 fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 15))
 
