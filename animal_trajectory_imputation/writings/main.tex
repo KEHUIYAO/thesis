@@ -92,7 +92,15 @@ Consider a collection of $N$ trajectories with missing data, each associated wit
 %Random Forest is a machine learning method well-suited for imputing missing values in time series data. It works by constructing numerous decision trees, each based on different subsets of the data and features, to make predictions. For time series imputation, Random Forest takes into account the sequential nature of the data and any relevant external variables, utilizing the relationships between time points to predict missing values accurately. The details of implementing RandomForest for animal trajectory imputation can be seen in Appendix \ref{sec: randomforest}.
 
 \section{CSDI Method}
-\citet{tashiro2021csdi} introduced Conditional Score-based Diffusion models for multivariate time series imputation (CSDI). Since animal trajectories can be considered as bivariate time series with additional variables, the idea is to use CSDI in the context of animal trajectory imputation. The following sections will provide an overview of how CSDI works for time series imputation. We start by explaining the denoising diffusion probabilistic model (DDPM) and its conditional variant. Next, we will show how the conditional DDPM can be applied to time series imputation. 
+\citet{tashiro2021csdi} introduced Conditional Score-based Diffusion models for multivariate time series imputation (CSDI). Since animal trajectories can be considered as bivariate time series with additional variables, the idea is to use CSDI in the context of animal trajectory imputation. Figure \ref{fig: visualization of the CSDI for trajectory imputation} shows the procedure of this algorithm. The following sections will provide an overview of how CSDI works for time series imputation. We start by explaining the denoising diffusion probabilistic model (DDPM) and its conditional variant. Next, we will show how the conditional DDPM can be applied to time series imputation. 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{../figure/algorithm} % Adjust the scale or width as needed
+  \caption{Procedure for the CSDI algorithm for trajectory imputation. First, the trajectory is decomposed into a bivariate time series with missing values. Then this bivariate time series is input into the CSDI model to impute the missing values. Finally, the imputed values are then reassembled back into the original trajectory. In the figure, black ``x" marks represent observed data points, while unfilled black ``o" circles indicate imputed data points.}
+  \label{fig: visualization of the CSDI for trajectory imputation} % Label for referencing
+\end{figure}
+
 
 \subsection{Denoising Diffusion Probabilistic Models}\label{sec: ddpm}
 Assume we want to estimate a true data distribution $q(\bm{X}_0)$. The objective of DDPM is to train a model $p_{\theta}(\bm{X}_0)$, to closely match the true data distribution $q(\bm{X}_0)$ by working with a sequence of latent variables $\bm{X}_t$, (for $t=1$ to $T$), which exist in the same sample space as $\bm{X}_0$. Following the diffusion probabilistic model framework introduced by \citet{ho2020denoising}, the approach consists of two main stages: a forward process and a reverse process.
@@ -226,7 +234,7 @@ Within each residual layer, the model uses a single-layer Transformer Encoder. T
 
 \section{Case Study}
 \subsection{Dataset}
-Our dataset consists of telemetry data for 402 female deer tracked across Wisconsin. For each deer, locations were recorded at multiple time points. Here, locations are recorded as pairs of geographic coordinates and times are recorded in Julian days, beginning on January 1, 2017. Time points are generally spaced 4 hours apart, with gaps indicating missing data for those intervals. On average, approximately 2700 observations were recorded for each deer. Besides location tracking, the dataset includes information on the landscapes traversed by the deer, categorized by the National Land Cover Database (NLCD) classifications \citep{anderson1976land}. Additionally, each observation's timing is detailed down to the month, day, and hour, with the month variable being a critical indicator for various seasonal activities like breeding, fawning, nonbreeding, or post-fawning.
+Our dataset consists of telemetry data for 402 female deer tracked across Wisconsin. For each deer, locations were recorded at multiple time points. Here, locations are recorded as pairs of geographic coordinates and times are recorded in Julian days, beginning on January 1, 2017. Time points are generally spaced 4 hours apart, with gaps indicating missing data for those intervals. On average, approximately 2700 observations were recorded for each deer. Besides location tracking, the dataset includes information on the landscapes traversed by the deer, categorized by the National Land Cover Database (NLCD) classifications \citep{usgs_nlcd_2011}. Additionally, each observation's timing is detailed down to the month, day, and hour, with the month variable being a critical indicator for various seasonal activities like breeding, fawning, nonbreeding, or post-fawning.
 \subsection{Notations}
 Let $N$ represent the total number of deer trajectories. For each deer $j$, let $n_j$ be the number of observed time points, $\bm{t}_j = \{t_{j1}, \ldots, t_{jn_j}\}$ the specific observation times, $\bm{Y}_j \in \mathbb{R}^{2 \times n_j}$ the location coordinates, and $\bm{Z}_j \in \mathbb{R}^{n_j \times K}$ the side information. The side information includes landscape and time-related variables. The landscape variable is categorized into 15 unique land cover types. Each category is transformed into a 15-dimensional one-hot encoded vector, with each dimension representing a distinct land cover type. Additionally, time-related variables like the month, day, and hour of observation contribute three more dimensions to $\bm{Z}_j$, resulting in a total of 18 dimensions ($K=18$). Here, the complete dataset for deer $j$ is represented by $\{\bm{Y}_j, \bm{Z}_j, \bm{t}_j\}$.
 
@@ -496,21 +504,21 @@ Although interpolation follows the general direction of movement between observe
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/csdi_20} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/20_5094_csdi} % Adjust the scale or width as needed
   \caption{CSDI, p=20\%}
   \label{fig: csdi_20} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/interpolation_20} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/20_5094_interpolation} % Adjust the scale or width as needed
   \caption{Interpolation, p=20\%}
   \label{fig: interpolation_20} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/crawl_20} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/20_5094_crawl} % Adjust the scale or width as needed
   \caption{CTCRW, p=20\%}
   \label{fig: ctcrw_20} % Label for referencing
 \end{figure}
@@ -518,47 +526,74 @@ Although interpolation follows the general direction of movement between observe
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/csdi_50} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/50_5094_csdi} % Adjust the scale or width as needed
   \caption{CSDI, p=50\%}
   \label{fig: csdi_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/interpolation_50} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/50_5094_interpolation} % Adjust the scale or width as needed
   \caption{Interpolation, p=50\%}
   \label{fig: interpolation_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/crawl_50} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/50_5094_crawl} % Adjust the scale or width as needed
   \caption{CTCRW, p=50\%}
   \label{fig: ctcrw_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/csdi_80} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/80_5094_csdi} % Adjust the scale or width as needed
   \caption{CSDI, p=80\%}
   \label{fig: csdi_80} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/interpolation_80} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/80_5094_interpolation} % Adjust the scale or width as needed
   \caption{Interpolation, p=80\%}
   \label{fig: interpolation_80} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/crawl_80} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/80_5094_crawl} % Adjust the scale or width as needed
   \caption{CTCRW, p=80\%}
   \label{fig: ctcrw_80} % Label for referencing
 \end{figure}
 
+\subsection{Importance of Covariates}
 
+We examined the impact of including additional covariates in the imputation process by testing three different scenarios: no covariates, only time-related covariates (such as month, day, and hour), and both time-related and landscape covariates. Table \ref{tab: Impact of Different Covariate Inclusion on Model Performance} presents the model performance for each scenario. Our findings indicate that, across all missing ratio scenarios, the model with the full set of covariates performs best. When the missing ratio is low (e.g., $p=20\%$), the inclusion of covariates appears less critical. This is likely because the model can rely on historical or future locations to make reasonably accurate predictions. However, as the missing ratio increases to $p=80\%$, the model that includes both time-related and landscape covariates shows a significant improvement, reducing the MAE by 12 meters. This suggests that covariates become increasingly important in aiding imputation as the missing ratio grows. This makes sense because, with sparse observations, the model struggles to accurately determine locations based solely on past and future data, and thus benefits more from additional covariate information.
+
+
+
+
+
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\multirow{2}{*}{\textbf{Scenario}} & \multirow{2}{*}{\textbf{Covariates}} & \multicolumn{2}{c|}{\textbf{Metrics}} \\ \cline{3-4} 
+                                   &                                  & \textbf{MAE} & \textbf{CRPS} \\ \hline
+\multirow{3}{*}{$p=20\%$} & time + landscape                        &123                   &    $4.4e^{-5}$               \\ \cline{2-4} 
+                                   & time                        &    123              &   $4.4e^{-5}$                \\ \cline{2-4} 
+                                   & none                        &     124              &      $4.5e^{-5}$             \\ \hline
+\multirow{3}{*}{$p=50\%$} & time + landscape                        & 136                  &      $4.8e^{-5}$             \\ \cline{2-4} 
+                                   & time                        &    138              &    $5.0e^{-5}$               \\ \cline{2-4} 
+                                   & none                       &    140               &    $5.0e^{-5}$           \\ \hline
+\multirow{3}{*}{$p=80\%$} & time + landscape                        & 164                  &         $6.0e^{-5}$          \\ \cline{2-4} 
+                                   & time                        &   173               &   $6.5e^{-5}$               \\ \cline{2-4} 
+                                   & none                        &     176             &      $6.5e^{-5}$            \\ \hline
+\end{tabular}
+\caption{Impact of Different Covariate Inclusion on Model Performance}
+\label{tab: Impact of Different Covariate Inclusion on Model Performance}
+\end{table}
 
 
 \subsection{Trajectory Imputation Using CSDI}
@@ -568,7 +603,7 @@ In this section, we use the CSDI method to impute $\bm{Y}_j^{\mathrm{aug}}$, fol
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=\textwidth]{../figure/4_hour_trajectory_imputation} % Adjust the scale or width as needed
+  \includegraphics[width=\textwidth]{../figure/5094_4_hour_trajectory_imputation} % Adjust the scale or width as needed
   \caption{CSDI for deer trajectory imputation at 4-hour interval}
   \label{fig: csdi_aug} % Label for referencing
 \end{figure}
