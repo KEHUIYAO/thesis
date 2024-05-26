@@ -187,7 +187,7 @@ for i, start in enumerate(starts):
         df2 = pd.DataFrame(
             {"x": jul[start:end], "val": all_target_np[start:end, k], "y": all_observed_np[start:end, k]})
         df2 = df2[df2.y != 0]
-        # axes[i, k].plot(jul[start:end], quantiles_imp[2][start:end, k], color='g', linestyle='solid', label='CSDI')
+        axes[i, k].plot(jul[start:end], quantiles_imp[2][start:end, k], color='g', linestyle='solid', label='CSDI')
         axes[i, k].fill_between(jul[start:end], quantiles_imp[0][start:end, k], quantiles_imp[4][start:end, k],
                                 color='g', alpha=0.3)
         # Replace red X markers with black X marks
