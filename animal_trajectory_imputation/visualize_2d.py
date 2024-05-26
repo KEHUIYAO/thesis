@@ -13,7 +13,7 @@ def generate_non_overlapping_intervals(L, B, offset):
     starts = []
     end = 0
     for i in range(B):
-        start = rng.integer(end, L - (B - i) * offset)
+        start = rng.integers(end, L - (B - i) * offset)
         end = start + offset
         starts.append(start)
     return np.array(starts)
@@ -34,7 +34,10 @@ def plot_data_1d(ax, start, end, k):
     # Replace blue dots with unfilled black circles
     ax.plot(df.x, df.val, color='k', marker='o', markersize=circle_markersize, linestyle='None', fillstyle='none')
     ax.set_xlabel('jul')
-    ax.set_ylabel('X')
+    if k == 0:
+        ax.set_ylabel('X')
+    else:
+        ax.set_ylabel('Y')
     ax.ticklabel_format(style='plain', axis='y')
 
 
@@ -49,6 +52,10 @@ def plot_data_2d(ax, start, end):
     # plot 2d trajectory
     ax.plot(df1.x, df1.y, color='k', marker='o', markersize=circle_markersize, linestyle='None', fillstyle='none')
     ax.plot(df2.x, df2.y, color='k', marker='x', markersize=x_markersize, linestyle='None')
+
+    # # # Annotate each point with jul
+    # for i, txt in enumerate(df2['t']):
+    #     ax.annotate(i+1, (df2['x'].iloc[i], df2['y'].iloc[i]), textcoords="offset points", xytext=(5, 5), ha='center')
 
 
 
@@ -113,10 +120,6 @@ for deer_id in deer_id_list:
 
             # set seed 42
             rng = np.random.default_rng(42)
-
-
-
-
 
 
 
