@@ -73,7 +73,7 @@ for deer_id in deer_id_list:
 
             #######################################
             offset = 72
-            B = 5
+            B = 3
             plt.rcParams["font.size"] = 8
             markersize = 2
 
