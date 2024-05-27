@@ -157,7 +157,7 @@ for q in qlist:
 
 
 offset = 72
-B = 5
+B = 3
 plt.rcParams["font.size"] = 8
 markersize = 2
 
