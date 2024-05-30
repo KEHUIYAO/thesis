@@ -82,7 +82,7 @@ for deer_id in deer_id_list:
 
             starts = generate_non_overlapping_intervals(all_target_np.shape[0], B, offset)
 
-            fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 15))
+            fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 9))
 
             # Increase the marker sizes
             circle_markersize = 4  # Size for unfilled circles
@@ -171,7 +171,7 @@ rng = np.random.default_rng(42)
 
 starts = generate_non_overlapping_intervals(all_target_np.shape[0], B, offset)
 
-fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 15))
+fig, axes = plt.subplots(nrows=B, ncols=2, figsize=(10, 9))
 
 # Increase the marker sizes
 circle_markersize = 4  # Size for the unfilled circles
