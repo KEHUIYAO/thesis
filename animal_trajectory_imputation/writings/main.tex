@@ -36,7 +36,7 @@
 \newtheorem{lemma}{Lemma}
 
 
-\title{Animal Trajectory Imputation Using Deep Learning}
+\title{Animal Trajectory Imputation and Uncertainty Quantification Using Deep Learning}
 
 \author[1]{Kehui Yao}
 
@@ -52,7 +52,7 @@
 \maketitle
 
 \begin{abstract}
-Imputing missing data in animal trajectories is crucial for understanding their movements during unobserved periods. Traditional methods such as linear interpolation and the continuous-time correlated random walk model often fail to capture the complexity of animal movements, making the imputation less accurate. Our study introduces a deep learning approach to animal trajectory imputation, using the Conditional Score-based Diffusion Model (CSDI) originally designed for multivariate time series data. Unlike traditional methods, CSDI uses observed trajectories and external covariates to impute missing locations, capturing periodic patterns and the influence of covariates on animal movements, which leads to more accurate imputations. We develop a pipeline to segment trajectories from hundreds of deer and train the model to learn general movement patterns from this collective dataset. When tested on a dataset of 402 female deer trajectories in Wisconsin, our method not only achieves more accurate deterministic imputations but also more reliable probabilistic imputations than existing methods.
+Imputing missing data in animal trajectories is crucial for understanding their movements during unobserved periods. Traditional methods such as linear interpolation and the continuous-time correlated random walk model often fail to capture the complexity of animal movements, making the imputation less accurate. Here we develop a deep learning approach to animal trajectory imputation, using the Conditional Score-based Diffusion Model (CSDI) originally designed for multivariate time series data. Unlike traditional methods, our deep learning method uses observed trajectories and external covariates to impute missing locations, capturing periodic patterns and the influence of covariates on animal movements, which leads to more accurate imputations. We develop a pipeline to segment trajectories from hundreds of deer and train the model to learn general movement patterns from this collective dataset. When tested on a dataset of 402 female deer trajectories in Wisconsin, our method not only achieves more accurate deterministic imputations but also more reliable probabilistic imputations than existing methods.
 
 \end{abstract}
 
@@ -71,10 +71,17 @@ and State-Space Models (SSMs) are effective in analyzing datasets with consisten
 Machine learning and deep learning methods often provide superior pattern extraction capabilities compared to traditional statistical methods. Researchers have explored these methods for animal trajectory analysis. Examples include the RandomForest approach by \citet{rew2019animal}, inverse reinforcement learning by \citet{hirakawa2018can}, and the LSTM encoder-decoder network by \citet{li2021prediction}. Despite their potential, deep learning's adoption for animal trajectory imputation remains limited. This limited adoption may be due to several factors. A major concern is that most deep learning models produce deterministic predictions, while a probabilistic approach providing a range of possible locations might better predict an animal's potential positions. Furthermore, deep learning requires extensive training data. In situations with limited data, such as tracking a few animals, these models may learn more noise than underlying patterns. Lastly, methods like LSTM and RandomForest, designed primarily for datasets with regular time intervals, are not suitable for those with irregular intervals.
 
 
-In our study, we apply the Conditional Score-based Diffusion Models (CSDI) \citep{tashiro2021csdi}, originally designed for probabilistic time series imputation, to the context of animal trajectory imputation. We prepare a large training dataset by segmenting the trajectories of 402 deer. The model is trained to impute missing trajectories based on observed locations and by incorporating the deer's habitat landcover and temporal information. Our study shows that the model significantly outperforms traditional trajectory imputation methods, such as linear interpolation and the continuous-time correlated random walk model \citep{johnson2008continuous} in both mean absolute error (MAE) and continuous ranked probability score (CRPS) metrics. Additionally, this model addresses the two main challenges previously outlined: it can impute data with irregular time intervals and produce probabilistic imputations. To our knowledge, this is the first work to apply generative models to animal trajectory imputation.
+In our study, we extend the Conditional Score-based Diffusion Models (CSDI) \citep{tashiro2021csdi}, originally designed for probabilistic time series imputation, to the context of animal trajectory imputation. Figure \ref{fig: visualization of the CSDI for trajectory imputation} shows the procedure of this algorithm. We prepare a large training dataset by segmenting the trajectories of 402 deer. The proposed model imputes missing trajectories based on observed locations and by incorporating the deer's habitat landcover and temporal information. Our study shows that the model significantly outperforms traditional trajectory imputation methods, such as linear interpolation and the continuous-time correlated random walk model \citep{johnson2008continuous} in both mean absolute error (MAE) and continuous ranked probability score (CRPS) metrics. Additionally, this model addresses the two main challenges previously outlined: it can impute data with irregular time intervals and produce uncertainty quantifications via probabilistic imputations. To our knowledge, this is the first work to apply generative models to animal trajectory imputation with uncertainty quantification.
+ 
+ 
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{../figure/algorithm} % Adjust the scale or width as needed
+  \caption{Procedure for the CSDI algorithm for trajectory imputation. First, the trajectory is decomposed into a bivariate time series with missing values. Then this bivariate time series is input into the CSDI model to impute the missing values. Finally, the imputed values are then reassembled back into the original trajectory. In the figure, black ``x" marks represent observed data points, while unfilled black ``o" circles indicate imputed data points.}
+  \label{fig: visualization of the CSDI for trajectory imputation} % Label for referencing
+\end{figure}
 
-\section{Notations for Animal Trajectory Data}\label{sec: multivariate time series imputation}
-Consider a collection of $N$ trajectories with missing data, each associated with either a single animal or a group of animals. Telemetry data is represented as $\bm{X} \in \mathbb{R}^{2 \times L}$, where ``2" denotes the two spatial coordinates (longitude and latitude), and $L$ represents the trajectory's length. To distinguish between missing and observed data, we use an observation mask $\bm{M} \in \{0,1\}^{2 \times L}$. Here, $\bm{M}[c,l]=0$ indicates that $\bm{X}[c,l]$ is missing, and $\bm{M}[c,l]=1$ indicates that $\bm{X}[c,l]$ is observed, for $c\in \{1,2\}$ and $l \in \{1,\ldots,L\}$. It is important to note that the time intervals between consecutive data points may vary, denoted by $\bm{s} \in \mathbb{R}^L$. Additionally, we include relevant information for each trajectory in $\bm{V} \in \mathbb{R}^{L \times K}$, where $K$ is the dimension of information. In summary, each trajectory is represented by the set $\{\bm{X}, \bm{M}, \bm{V}, \bm{s}\}$. We define $\bm{X}^{\mathrm{obs}} = \bm{X} \odot \bm{M}$ as the observed and $\bm{X}^{\mathrm{mis}} = \bm{X} \odot (\bm{1}-\bm{M})$ as the missing that requires imputation. 
+
 
 %Denote $\mathcal{X}$ as the sample space for $\bm{X}$, $\bm{X}^{\mathrm{obs}}$, and $\bm{X}^{\mathrm{mis}}$.
 
@@ -91,16 +98,11 @@ Consider a collection of $N$ trajectories with missing data, each associated wit
 %\subsection{RandomForest}
 %Random Forest is a machine learning method well-suited for imputing missing values in time series data. It works by constructing numerous decision trees, each based on different subsets of the data and features, to make predictions. For time series imputation, Random Forest takes into account the sequential nature of the data and any relevant external variables, utilizing the relationships between time points to predict missing values accurately. The details of implementing RandomForest for animal trajectory imputation can be seen in Appendix \ref{sec: randomforest}.
 
-\section{CSDI Method}
-\citet{tashiro2021csdi} introduced Conditional Score-based Diffusion models for multivariate time series imputation (CSDI). Since animal trajectories can be considered as bivariate time series with additional variables, the idea is to use CSDI in the context of animal trajectory imputation. Figure \ref{fig: visualization of the CSDI for trajectory imputation} shows the procedure of this algorithm. The following sections will provide an overview of how CSDI works for time series imputation. We start by explaining the denoising diffusion probabilistic model (DDPM) and its conditional variant. Next, we will show how the conditional DDPM can be applied to time series imputation. 
+\section{Model}
+\subsection{Notations for Animal Trajectory Data}\label{sec: multivariate time series imputation}
+Consider a collection of $N$ trajectories with missing data, each associated with either a single animal or a group of animals. Telemetry data is represented as $\bm{X} \in \mathbb{R}^{2 \times L}$, where ``2" denotes the two spatial coordinates (longitude and latitude), and $L$ represents the trajectory's length. To distinguish between missing and observed data, we use an observation mask $\bm{M} \in \{0,1\}^{2 \times L}$. Here, $\bm{M}[c,l]=0$ indicates that $\bm{X}[c,l]$ is missing, and $\bm{M}[c,l]=1$ indicates that $\bm{X}[c,l]$ is observed, for $c\in \{1,2\}$ and $l \in \{1,\ldots,L\}$. It is important to note that the time intervals between consecutive data points may vary, denoted by $\bm{s} \in \mathbb{R}^L$. Additionally, we include relevant information for each trajectory in $\bm{V} \in \mathbb{R}^{L \times K}$, where $K$ is the dimension of information. In summary, each trajectory is represented by the set $\{\bm{X}, \bm{M}, \bm{V}, \bm{s}\}$. We define $\bm{X}^{\mathrm{obs}} = \bm{X} \odot \bm{M}$ as the observed and $\bm{X}^{\mathrm{mis}} = \bm{X} \odot (\bm{1}-\bm{M})$ as the missing that requires imputation. 
 
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=\textwidth]{../figure/algorithm} % Adjust the scale or width as needed
-  \caption{Procedure for the CSDI algorithm for trajectory imputation. First, the trajectory is decomposed into a bivariate time series with missing values. Then this bivariate time series is input into the CSDI model to impute the missing values. Finally, the imputed values are then reassembled back into the original trajectory. In the figure, black ``x" marks represent observed data points, while unfilled black ``o" circles indicate imputed data points.}
-  \label{fig: visualization of the CSDI for trajectory imputation} % Label for referencing
-\end{figure}
-
+%Figure \ref{fig: visualization of the CSDI for trajectory imputation} shows the procedure of this algorithm.
 
 \subsection{Denoising Diffusion Probabilistic Models}\label{sec: ddpm}
 Assume we want to estimate a true data distribution $q(\bm{X}_0)$. The objective of DDPM is to train a model $p_{\theta}(\bm{X}_0)$, to closely match the true data distribution $q(\bm{X}_0)$ by working with a sequence of latent variables $\bm{X}_t$, (for $t=1$ to $T$), which exist in the same sample space as $\bm{X}_0$. Following the diffusion probabilistic model framework introduced by \citet{ho2020denoising}, the approach consists of two main stages: a forward process and a reverse process.
@@ -138,7 +140,7 @@ This optimization function implies that the denoising function $\bm{\epsilon}_{\
 
 
 
-
+\section{Method}
 \subsection{Imputation with Conditional Diffusion Models}\label{sec: csdi}
 Let's assume the missing data $\bm{X}^{\mathrm{mis}}$ follows a distribution $q(\bm{X}^{\mathrm{mis}}|\bm{X}^{\mathrm{obs}}, \bm{V}, \bm{s})$, which is conditioned on the observed data $\bm{X}^{\mathrm{obs}}$ and additional variables $\bm{V}$ and $\bm{s}$. Our goal is to construct a model denoted by $p_{\theta}(\bm{X}^{\mathrm{mis}}|\bm{X}^{\mathrm{obs}}, \bm{V}, \bm{s})$ that can closely approximate this true distribution $q$. Consider modeling $p_{\theta}(\bm{X}_0^{\mathrm{mis}}|\bm{X}_0^{\mathrm{obs}}, \bm{V}, \bm{s})$ with a diffusion model by extending the reverse process in Eq. \ref{eq: reverse diffusion} to a conditional format:
 \begin{align}\label{eq: conditional reverse process}
@@ -156,7 +158,7 @@ where $\bm{\epsilon}_{\theta}$ becomes the conditional denoising function that t
 
 Once trained, given the function $\bm{\epsilon}_{\theta}$, $\bm{X}_0^{\mathrm{obs}}$, $\bm{V}$, and $\bm{s}$, we can sample $\bm{X}_0^{\mathrm{mis}}$ based on the reverse process in Eq. \ref{eq: conditional reverse process}. 
 
-\subsection{Training of CSDI}\label{sec: training of csdi}
+\subsection{Training and Imputation}\label{sec: training of csdi}
 It is important to note that the form of $\bm{\epsilon}_{\theta}$ is the only difference between the parametrization in Eq. \ref{eq: conditional DDPM parametrization} and Eq. \ref{eq: DDPM parametrization}. Consequently, the training process for the conditional denoising function follows the same procedure as the unconditional model in Section \ref{sec: ddpm}. Given conditional observations $\bm{X}_0^{\mathrm{obs}}$, $\bm{V}$, $\bm{s}$ and imputation targets $\bm{X}_0^{\mathrm{mis}}$, we sample noisy targets $\bm{X}_t^{\mathrm{mis}}=\sqrt{\alpha_t}\bm{X}_0^{\mathrm{mis}}+(1-\alpha_t)\bm{\epsilon}$, and train $\bm{\epsilon}_{\theta}$ by minimizing the following loss function:
 \begin{equation}\label{eq: objective function}
 	\min_{\theta}\mathcal{L}(\theta)=\min_{\theta}\mathbb{E}_{t\sim [1,T],\bm{X}_0^{\mathrm{mis}},\bm{\epsilon}}||\bm{\epsilon}-\bm{\epsilon}_{\theta}(\bm{X}_t^{\mathrm{mis}}, t|\bm{X}_0^{\mathrm{obs}},\bm{V},\bm{s})||^2_2,
@@ -186,13 +188,6 @@ Once we obtain $\bm{X}_0^{\mathrm{ta}}$ and $\bm{X}_0^{\mathrm{co}}$, we proceed
 \end{algorithm}
 
 
-
-
-
-
-
-
-\subsection{Imputation of CDSI}
 Once the $\bm{\epsilon}_{\theta}$ is trained, we follow Eq. \ref{eq: conditional reverse process} to generate $\bm{X}_0^{\mathrm{mis}}$. The steps involved in the imputation process are outlined in Algorithm \ref{alg: imputation}.
 
 \begin{algorithm}
@@ -235,7 +230,7 @@ Within each residual layer, the model uses a single-layer Transformer Encoder. T
 \section{Case Study}
 \subsection{Dataset}
 Our dataset 402 female deer tracked across Wisconsin. For each deer, locations were recorded at multiple time points. Here, locations are recorded as pairs of geographic coordinates and times are recorded in Julian days, beginning on January 1, 2017. Time points are generally spaced 4 hours apart, with gaps indicating missing data for those intervals. On average, approximately 2700 observations were recorded for each deer. Besides location tracking, the dataset includes information on the landscapes traversed by the deer, categorized by the National Land Cover Database (NLCD) classifications \citep{usgs_nlcd_2011}. Additionally, each observation's timing is detailed down to the month, day, and hour, with the month variable being a critical indicator for various seasonal activities like breeding, fawning, nonbreeding, or post-fawning.
-\subsection{Notations}
+\subsection{Notation}
 Let $N$ represent the total number of deer trajectories. For each deer $j$, let $n_j$ be the number of observed time points, $\bm{t}_j = \{t_{j1}, \ldots, t_{jn_j}\}$ the specific observation times, $\bm{Y}_j \in \mathbb{R}^{2 \times n_j}$ the location coordinates, and $\bm{Z}_j \in \mathbb{R}^{n_j \times K}$ the auxiliary information. The auxiliary information includes landscape and time-related variables. The landscape variable is categorized into 15 unique land cover types. Each category is transformed into a 15-dimensional one-hot encoded vector, with each dimension representing a distinct land cover type. Additionally, time-related variables like the month, day, and hour of observation contribute three more dimensions to $\bm{Z}_j$, resulting in a total of 18 dimensions ($K=18$). Here, the complete dataset for deer $j$ is represented by $\{\bm{Y}_j, \bm{Z}_j, \bm{t}_j\}$.
 
 
@@ -262,7 +257,7 @@ Therefore, the CRPS for our testing dataset is calculated as: \begin{equation}
 
 
 
-\subsection{Imputation using CTCRW}\label{sec: imputation using ctcrw}
+\subsection{Imputation Using Existing Method}\label{sec: imputation using ctcrw}
 
 \citet{johnson2008continuous} introduced the continuous-time correlated random walk (CTCRW) model, specifically designed to analyze animal telemetry data collected at irregular time intervals. At its core, the model uses the continuous-time Ornstein-Uhlenbeck process to model the animal's movement velocity. To estimate movement parameters and predict unobserved locations, the model uses a state-space framework. 
 
@@ -312,7 +307,7 @@ C\left[\xi_{c i}, \zeta_{c i}\right] & V\left[\zeta_{c i}\right]
 We use the maximum likelihood method for parameter estimation and location prediction. A key advantage of the Kalman filter and smoother (KFS) is its natural handling of missing observations. To estimate the value of $\bm{\alpha}_{ci}$ at a time $t_i$ with no observed location, simply augment the dataset with $y_{ci}=\mathrm{NA}$ for that time. The KFS automatically filters and smooths the data, providing estimates for location $\hat{\bm{\alpha}}_{ci}$ and variance $\hat{V}_{ci}$. We implement this using R Statistical Software (v4.2.1) \citep{R} and the R package ``crawl" \citep{johnson2018crawl}.
 
 
-\subsection{Imputation using CSDI}
+\subsection{Imputation using Proposed Method}
 \subsubsection{Preparation for Model Input}\label{sec: model training}
 This section explains the preparation of training data for the CSDI model, using deer trajectory data from the dataset $[\{\bm{Y}_j,\bm{Z}_j,\bm{t}_j\},j\in \mathcal{D}_{\mathrm{train}}]$. Direct use of $\{\bm{Y}_j,\bm{Z}_j,\bm{t}_j\}$ poses three challenges. First, the temporal length of each $\bm{Y}_j$ varies, whereas the model requires inputs of uniform length. Second, the model finds the temporal length of $\bm{Y}_j$ excessively long, as it focuses on attention between any two time points, while animal movements usually lack long-term dependencies. Lastly, treating each of the 331 deer trajectories as an individual training sample fails to produce a sufficiently large dataset for effective training.
 
@@ -429,20 +424,7 @@ We apply Algorithm \ref{alg: trajectory imputation} to the set $\{\bm{Y}_j^{\mat
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-\subsection{Model Comparison}
+\subsection{Results}
 In this analysis, we compare the CSDI method with two traditional approaches: Linear nterpolation and Continuous-Time Correlated Random Walk (CTCRW), using the testing dataset. Linear interpolation is a straightforward method that draws a straight line between two known points to estimate missing values for any intervening points. This method is advantageous due to its simplicity and minimal computational demands. Linear interpolation does not rely on any model and is applied directly to the testing data. Similarly, CTCRW builds a parametric model from observed trajectory data and is directly applicable to the testing data. In contrast, the CSDI method requires initial training on the training dataset before application to the testing dataset.
 
 To evaluate the testing dataset, we established three scenarios with varying levels of missing data: 20\%, 50\%, and 80\%. These methods were applied to each scenario, and their performance is detailed in Table \ref{tab: model comparison}. The results show that CSDI consistently outperforms the other methods in all scenarios in terms of MAE. In terms of CRPS, CSDI also outperforms CTCRW. Since linear interpolation is a deterministic imputation method, it does not provide CRPS values. Additionally, the MAE difference between CSDI and the second-best method grows more significant as the amount of missing data increases. These results highlight the superior robustness and accuracy of the CSDI approach compared to other methods.
