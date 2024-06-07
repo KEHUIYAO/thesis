@@ -205,7 +205,7 @@ Once the $\bm{\epsilon}_{\theta}$ is trained, we follow Eq. \ref{eq: conditional
 
 
 
-\subsection{Architecture of the Denoising Function}
+\subsection{Architecture of The Denoising Function}
 In this section, we briefly describe the architecture of the denoising function $\bm{\epsilon}_{\theta}$. At its core, $\bm{\epsilon}_{\theta}$ is designed as a neural network with multiple residual layers and channels. The complete structure of $\bm{\epsilon}_{\theta}$ is detailed in \citet{tashiro2021csdi}.
 
 The model inputs include the observed data $\bm{X}_0^{\mathrm{obs}}$, the missing data $\bm{X}_t^{\mathrm{mis}}$, covariate $\bm{V}$, time intervals $\bm{s}$, and a diffusion step $t$. The model uses a 128-dimensional embedding for 
@@ -307,7 +307,7 @@ C\left[\xi_{c i}, \zeta_{c i}\right] & V\left[\zeta_{c i}\right]
 We use the maximum likelihood method for parameter estimation and location prediction. A key advantage of the Kalman filter and smoother (KFS) is its natural handling of missing observations. To estimate the value of $\bm{\alpha}_{ci}$ at a time $t_i$ with no observed location, simply augment the dataset with $y_{ci}=\mathrm{NA}$ for that time. The KFS automatically filters and smooths the data, providing estimates for location $\hat{\bm{\alpha}}_{ci}$ and variance $\hat{V}_{ci}$. We implement this using R Statistical Software (v4.2.1) \citep{R} and the R package ``crawl" \citep{johnson2018crawl}.
 
 
-\subsection{Imputation using Proposed Method}
+\subsection{Imputation Using Proposed Method}
 \subsubsection{Preparation for Model Input}\label{sec: model training}
 This section explains the preparation of training data for the CSDI model, using deer trajectory data from the dataset $[\{\bm{Y}_j,\bm{Z}_j,\bm{t}_j\},j\in \mathcal{D}_{\mathrm{train}}]$. Direct use of $\{\bm{Y}_j,\bm{Z}_j,\bm{t}_j\}$ poses three challenges. First, the temporal length of each $\bm{Y}_j$ varies, whereas the model requires inputs of uniform length. Second, the model finds the temporal length of $\bm{Y}_j$ excessively long, as it focuses on attention between any two time points, while animal movements usually lack long-term dependencies. Lastly, treating each of the 331 deer trajectories as an individual training sample fails to produce a sufficiently large dataset for effective training.
 
@@ -579,7 +579,7 @@ We examined the impact of including additional covariates in the imputation proc
 \end{table}
 
 
-\subsection{Trajectory Imputation Using CSDI}
+\subsection{Trajectory Imputation Using Proposed Method}
 In this section, we use the CSDI method to impute $\bm{Y}_j^{\mathrm{aug}}$, following the procedure outlined for deer trajectory imputation in the test dataset, as detailed in Section \ref{sec: model imputation}. For any $j$ in $\mathcal{D}_{\mathrm{train}} \cup \mathcal{D}_{\mathrm{test}}$, we apply Algorithm \ref{alg: trajectory imputation} to the set $\{\bm{Y}_j^{\mathrm{aug}}, \bm{Z}_j^{\mathrm{aug}}, \bm{t}_j^{\mathrm{aug}}, \bm{P}_j^{\mathrm{aug}}\}$ and obtain $B$ imputed samples, denoted by $\{\bm{Y}_j^{\mathrm{aug},b}, b=1,\ldots, B\}$. For deterministic imputation, we calculate the average of all $B$ samples, given by $\hat{\bm{Y}}_j^{\mathrm{aug}} = \frac{1}{B} \sum_{b=1}^B \bm{Y}_j^{\mathrm{aug},b}$. For probabilistic imputation, we calculate the 5\% and 95\% quantiles of the samples to estimate the "range". Visualizations of the imputation for one deer are presented in Figure \ref{fig: csdi_aug}.
 
 
