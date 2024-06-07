@@ -52,7 +52,7 @@
 \maketitle
 
 \begin{abstract}
-Imputing missing data in animal trajectories is crucial for understanding their movements during unobserved periods. Traditional methods such as linear interpolation and the continuous-time correlated random walk model often fail to capture the complexity of animal movements, making the imputation less accurate. Our study introduces a deep learning approach to animal trajectory imputation, using the Conditional Score-based Diffusion Model (CSDI) originally designed for multivariate time series data. Unlike traditional methods, CSDI uses observed trajectories and external covariates to impute missing trajectories, capturing periodic patterns and the influence of covariates on animal movements, which leads to more accurate imputations. We develop a pipeline to segment trajectories from hundreds of deer and train the model to learn general movement patterns from this collective dataset. When tested on a dataset of 402 female deer trajectories in Wisconsin, our method not only achieves more accurate deterministic imputations but also more reliable probabilistic imputations than existing methods.
+Imputing missing data in animal trajectories is crucial for understanding their movements during unobserved periods. Traditional methods such as linear interpolation and the continuous-time correlated random walk model often fail to capture the complexity of animal movements, making the imputation less accurate. Our study introduces a deep learning approach to animal trajectory imputation, using the Conditional Score-based Diffusion Model (CSDI) originally designed for multivariate time series data. Unlike traditional methods, CSDI uses observed trajectories and external covariates to impute missing locations, capturing periodic patterns and the influence of covariates on animal movements, which leads to more accurate imputations. We develop a pipeline to segment trajectories from hundreds of deer and train the model to learn general movement patterns from this collective dataset. When tested on a dataset of 402 female deer trajectories in Wisconsin, our method not only achieves more accurate deterministic imputations but also more reliable probabilistic imputations than existing methods.
 
 \end{abstract}
 
@@ -151,7 +151,7 @@ Based on Eq. \ref{eq: conditional reverse process}, we aim to model the conditio
 	&\bm{\mu}_{\theta}(\bm{X}_t^{\mathrm{mis}}, t|\bm{X}_0^{\mathrm{obs}},\bm{V},\bm{s})=\bm{\mu}^{\mathrm{DDPM}}(\bm{X}_t^{\mathrm{mis}},t,\bm{\epsilon}_{\theta}(\bm{X}_t^{\mathrm{mis}},t|\bm{X}_0^{\mathrm{obs}},\bm{V},\bm{s}))\\
 	&\sigma_{\theta}(\bm{X}_t^{\mathrm{mis}},t|\bm{X}_0^{\mathrm{obs}},\bm{V},\bm{s})=\sigma^{\mathrm{DDPM}}(\bm{X}_t^{\mathrm{mis}},t)
 \end{align}
-where $\bm{\epsilon}_{\theta}$ becomes the conditional denoising function that takes conditional observations $\bm{X}_0^{\mathrm{obs}}$ and side information $\bm{V}$ and $\bm{s}$ as inputs. $\bm{\mu}^{\mathrm{DDPM}}$ and $\sigma^{\mathrm{DDPM}}$ in Eq. \ref{eq: conditional DDPM parametrization} are the same functions defined in Eq. \ref{eq: DDPM parametrization}. 
+where $\bm{\epsilon}_{\theta}$ becomes the conditional denoising function that takes conditional observations $\bm{X}_0^{\mathrm{obs}}$ and auxiliary information $\bm{V}$ and $\bm{s}$ as inputs. $\bm{\mu}^{\mathrm{DDPM}}$ and $\sigma^{\mathrm{DDPM}}$ in Eq. \ref{eq: conditional DDPM parametrization} are the same functions defined in Eq. \ref{eq: DDPM parametrization}. 
  
 
 Once trained, given the function $\bm{\epsilon}_{\theta}$, $\bm{X}_0^{\mathrm{obs}}$, $\bm{V}$, and $\bm{s}$, we can sample $\bm{X}_0^{\mathrm{mis}}$ based on the reverse process in Eq. \ref{eq: conditional reverse process}. 
@@ -234,12 +234,12 @@ Within each residual layer, the model uses a single-layer Transformer Encoder. T
 
 \section{Case Study}
 \subsection{Dataset}
-Our dataset consists of telemetry data for 402 female deer tracked across Wisconsin. For each deer, locations were recorded at multiple time points. Here, locations are recorded as pairs of geographic coordinates and times are recorded in Julian days, beginning on January 1, 2017. Time points are generally spaced 4 hours apart, with gaps indicating missing data for those intervals. On average, approximately 2700 observations were recorded for each deer. Besides location tracking, the dataset includes information on the landscapes traversed by the deer, categorized by the National Land Cover Database (NLCD) classifications \citep{usgs_nlcd_2011}. Additionally, each observation's timing is detailed down to the month, day, and hour, with the month variable being a critical indicator for various seasonal activities like breeding, fawning, nonbreeding, or post-fawning.
+Our dataset 402 female deer tracked across Wisconsin. For each deer, locations were recorded at multiple time points. Here, locations are recorded as pairs of geographic coordinates and times are recorded in Julian days, beginning on January 1, 2017. Time points are generally spaced 4 hours apart, with gaps indicating missing data for those intervals. On average, approximately 2700 observations were recorded for each deer. Besides location tracking, the dataset includes information on the landscapes traversed by the deer, categorized by the National Land Cover Database (NLCD) classifications \citep{usgs_nlcd_2011}. Additionally, each observation's timing is detailed down to the month, day, and hour, with the month variable being a critical indicator for various seasonal activities like breeding, fawning, nonbreeding, or post-fawning.
 \subsection{Notations}
-Let $N$ represent the total number of deer trajectories. For each deer $j$, let $n_j$ be the number of observed time points, $\bm{t}_j = \{t_{j1}, \ldots, t_{jn_j}\}$ the specific observation times, $\bm{Y}_j \in \mathbb{R}^{2 \times n_j}$ the location coordinates, and $\bm{Z}_j \in \mathbb{R}^{n_j \times K}$ the side information. The side information includes landscape and time-related variables. The landscape variable is categorized into 15 unique land cover types. Each category is transformed into a 15-dimensional one-hot encoded vector, with each dimension representing a distinct land cover type. Additionally, time-related variables like the month, day, and hour of observation contribute three more dimensions to $\bm{Z}_j$, resulting in a total of 18 dimensions ($K=18$). Here, the complete dataset for deer $j$ is represented by $\{\bm{Y}_j, \bm{Z}_j, \bm{t}_j\}$.
+Let $N$ represent the total number of deer trajectories. For each deer $j$, let $n_j$ be the number of observed time points, $\bm{t}_j = \{t_{j1}, \ldots, t_{jn_j}\}$ the specific observation times, $\bm{Y}_j \in \mathbb{R}^{2 \times n_j}$ the location coordinates, and $\bm{Z}_j \in \mathbb{R}^{n_j \times K}$ the auxiliary information. The auxiliary information includes landscape and time-related variables. The landscape variable is categorized into 15 unique land cover types. Each category is transformed into a 15-dimensional one-hot encoded vector, with each dimension representing a distinct land cover type. Additionally, time-related variables like the month, day, and hour of observation contribute three more dimensions to $\bm{Z}_j$, resulting in a total of 18 dimensions ($K=18$). Here, the complete dataset for deer $j$ is represented by $\{\bm{Y}_j, \bm{Z}_j, \bm{t}_j\}$.
 
 
-Our ultimate goal is to reconstruct the paths of each deer to ensure their movements are recorded at regular 4-hour intervals. To achieve this, $\bm{t}_j$ is expanded into an augmented series $\bm{t}_j^{\mathrm{aug}}=\{t_{j1}^{\mathrm{aug}},\ldots,t_{jm_j}^{\mathrm{aug}}\}$, with $n_j^{\mathrm{aug}}$ denoting the series length. Define $t_{j1}^{\mathrm{aug}}=t_{j1}$, $t_{jn_j^{\mathrm{aug}}}^{\mathrm{aug}}=t_{jn_j}$, $\bm{t}_j\subseteq \bm{t}_j^{\mathrm{aug}}$, and the interval between $t_{ji}^{\mathrm{aug}}$ and $t_{j,i-1}^{\mathrm{aug}}$ as 4 hours. Additionally, the deer's location data for the augmented time points is denoted by $\bm{Y}_j^{\mathrm{aug}}\in \mathbb{R}^{2\times n_j^{\mathrm{aug}}}$, and the associated side information by $\bm{Z}_j^{\mathrm{aug}}$. Time points in $\bm{t}_j^{\mathrm{aug}}$ not found in the original $\bm{t}_j$ indicate intervals with missing location data we aim to reconstruct. Define $\bm{P}_j^{\mathrm{aug}}\in \mathbb{R}^{2\times n_j^{\mathrm{aug}}}$ as the mask for identifying missing versus observed data. Therefore, our task is to impute missing values in $\bm{Y}_j^{\mathrm{aug}}$.
+Our ultimate goal is to reconstruct the paths of each deer to ensure their movements are recorded at regular 4-hour intervals. To achieve this, $\bm{t}_j$ is expanded into an augmented series $\bm{t}_j^{\mathrm{aug}}=\{t_{j1}^{\mathrm{aug}},\ldots,t_{jm_j}^{\mathrm{aug}}\}$, with $n_j^{\mathrm{aug}}$ denoting the series length. Define $t_{j1}^{\mathrm{aug}}=t_{j1}$, $t_{jn_j^{\mathrm{aug}}}^{\mathrm{aug}}=t_{jn_j}$, $\bm{t}_j\subseteq \bm{t}_j^{\mathrm{aug}}$, and the interval between $t_{ji}^{\mathrm{aug}}$ and $t_{j,i-1}^{\mathrm{aug}}$ as 4 hours. Additionally, the deer's location data for the augmented time points is denoted by $\bm{Y}_j^{\mathrm{aug}}\in \mathbb{R}^{2\times n_j^{\mathrm{aug}}}$, and the associated auxiliary information by $\bm{Z}_j^{\mathrm{aug}}$. Time points in $\bm{t}_j^{\mathrm{aug}}$ not found in the original $\bm{t}_j$ indicate intervals with missing location data we aim to reconstruct. Define $\bm{P}_j^{\mathrm{aug}}\in \mathbb{R}^{2\times n_j^{\mathrm{aug}}}$ as the mask for identifying missing versus observed data. Therefore, our task is to impute missing values in $\bm{Y}_j^{\mathrm{aug}}$.
 
 
 
@@ -505,21 +505,22 @@ Although interpolation follows the general direction of movement between observe
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/20_5094_csdi} % Adjust the scale or width as needed
-  \caption{CSDI, p=20\%}
+  \caption{This figure illustrates the imputation results using the CSDI model for a single deer's trajectory with a 20\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CSDI model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: csdi_20} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/20_5094_interpolation} % Adjust the scale or width as needed
-  \caption{Interpolation, p=20\%}
+  \caption{This figure illustrates the imputation results using interpolation for a single deer's trajectory with a 20\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by interpolation.}
   \label{fig: interpolation_20} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/20_5094_crawl} % Adjust the scale or width as needed
-  \caption{CTCRW, p=20\%}
+  \caption{This figure illustrates the imputation results using the Continuous-Time Correlated Random Walk (CTCRW) model for a single deer's trajectory with a 20\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CTCRW model. Shaded green areas represent the 95\% confidence interval around the imputed values.
+}
   \label{fig: ctcrw_20} % Label for referencing
 \end{figure}
 
@@ -527,42 +528,42 @@ Although interpolation follows the general direction of movement between observe
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/50_5094_csdi} % Adjust the scale or width as needed
-  \caption{CSDI, p=50\%}
+  \caption{This figure illustrates the imputation results using the CSDI model for a single deer's trajectory with a 50\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CSDI model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: csdi_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/50_5094_interpolation} % Adjust the scale or width as needed
-  \caption{Interpolation, p=50\%}
+  \caption{This figure illustrates the imputation results using interpolation for a single deer's trajectory with a 50\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by interpolation.}
   \label{fig: interpolation_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/50_5094_crawl} % Adjust the scale or width as needed
-  \caption{CTCRW, p=50\%}
+  \caption{This figure illustrates the imputation results using the Continuous-Time Correlated Random Walk (CTCRW) model for a single deer's trajectory with a 50\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CTCRW model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: ctcrw_50} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/80_5094_csdi} % Adjust the scale or width as needed
-  \caption{CSDI, p=80\%}
+  \caption{This figure illustrates the imputation results using the CSDI model for a single deer's trajectory with a 80\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CSDI model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: csdi_80} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/80_5094_interpolation} % Adjust the scale or width as needed
-  \caption{Interpolation, p=80\%}
+  \caption{This figure illustrates the imputation results using interpolation for a single deer's trajectory with a 80\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by interpolation.}
   \label{fig: interpolation_80} % Label for referencing
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/80_5094_crawl} % Adjust the scale or width as needed
-  \caption{CTCRW, p=80\%}
+  \caption{This figure illustrates the imputation results using the Continuous-Time Correlated Random Walk (CTCRW) model for a single deer's trajectory with a 80\% missing data ratio. The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CTCRW model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: ctcrw_80} % Label for referencing
 \end{figure}
 
@@ -604,7 +605,7 @@ In this section, we use the CSDI method to impute $\bm{Y}_j^{\mathrm{aug}}$, fol
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{../figure/5094_4_hour_trajectory_imputation} % Adjust the scale or width as needed
-  \caption{CSDI for deer trajectory imputation at 4-hour interval}
+  \caption{This figure illustrates the imputation results using the CSDI model for a single deer's trajectory with a 4-hour imputation interval.  The figure is organized into rows of subplots, with each row showing the deer's trajectory over different time windows. The left subplot in each row shows the X coordinate (longitude) against time (Julian days). The right subplot in each row shows the Y coordinate (latitude) against time. Black ``x" marks represent the observed data points, which are the actual recorded positions of the deer. Unfilled black "o" circles indicate the evaluation data points used for assessing the imputation accuracy. Solid blue lines show the imputed trajectory values generated by the CSDI model. Shaded green areas represent the 95\% confidence interval around the imputed values.}
   \label{fig: csdi_aug} % Label for referencing
 \end{figure}
 
