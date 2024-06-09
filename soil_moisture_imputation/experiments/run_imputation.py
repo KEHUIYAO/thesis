@@ -40,12 +40,12 @@ def parse_args():
     # Argument parser
     ########################################
     parser = ArgParser()
-    parser.add_argument("--model-name", type=str, default='csdi')
+    parser.add_argument("--model-name", type=str, default='st_transformer')
     #parser.add_argument("--model-name", type=str, default='interpolation')
-    parser.add_argument("--dataset-name", type=str, default='air36')
+    parser.add_argument("--dataset-name", type=str, default='soil_moisture')
     # parser.add_argument("--dataset-name", type=str, default='air36')
     #parser.add_argument("--config", type=str, default=None)
-    parser.add_argument("--config", type=str, default='imputation/csdi_air36.yaml')
+    parser.add_argument("--config", type=str, default='imputation/st_transformer_soil_moisture.yaml')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--check-val-every-n-epoch', type=int, default=1)
     parser.add_argument('--batch-inference', type=int, default=32)
@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument("--adj-threshold", type=float, default=0.1)
 
     parser.add_argument('--p-fault', type=float, default=0.0)
-    parser.add_argument('--p-noise', type=float, default=0.9)
+    parser.add_argument('--p-noise', type=float, default=0.2)
 
     known_args, _ = parser.parse_known_args()
     model_cls, imputer_cls = get_model_classes(known_args.model_name)
