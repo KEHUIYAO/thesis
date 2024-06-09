@@ -6,7 +6,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from sklearn.datasets import make_regression
 from sklearn.preprocessing import StandardScaler
-from .utils import positional_encoding
+
 
 class SpatiotemporalBasisFunctions:
     def __init__(self):
@@ -63,9 +63,9 @@ class DescriptiveST(PandasDataset):
                  num_space_basis_functions=100,
                  seed=42):
         df, dist, covariates = self.load(num_nodes, seq_len, covariate_size, linear_effect, num_time_basis_functions, num_space_basis_functions, seed)
-        temporal_encoding= positional_encoding(seq_len, 1, 4).squeeze(1)
 
-        super().__init__(dataframe=df, similarity_score="distance", attributes=dict(dist=dist, covariates=covariates, temporal_encoding=temporal_encoding))
+
+        super().__init__(dataframe=df, similarity_score="distance", attributes=dict(dist=dist, covariates=covariates))
 
 
     def load(self, num_nodes, seq_len, covariate_size, linear_effect, num_time_basis_functions, num_space_basis_functions, seed):
