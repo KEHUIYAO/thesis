@@ -527,7 +527,7 @@ class SpatioTemporalTransformerModel(nn.Module):
             h = layer_norm(h)
             out.append(mlp(h))
 
-        x_hat = out.pop(-1) + x
+        x_hat = x
         return x_hat, out
 
     @staticmethod
