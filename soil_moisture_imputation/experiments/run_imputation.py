@@ -1,6 +1,6 @@
 import sys
-sys.path.append('/home/kehuiyao/ST-Imputation/')
-sys.path.append('/Users/kehuiyao/Desktop/ST-Imputation/')
+#sys.path.append('/home/kehuiyao/ST-Imputation/')
+#sys.path.append('/Users/kehuiyao/Desktop/ST-Imputation/')
 
 
 
