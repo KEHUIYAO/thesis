@@ -6,7 +6,7 @@ import numpy as np
 from scipy.special import kv, gamma
 from scipy.spatial.distance import cdist
 from scipy.linalg import cholesky
-from .utils import positional_encoding
+
 
 
 
@@ -16,8 +16,7 @@ class GaussianProcess(PandasDataset):
 
     def __init__(self, num_nodes, seq_len, seed=42):
         df, dist = self.load(num_nodes, seq_len, seed)
-        temporal_encoding= positional_encoding(seq_len, 1, 4).squeeze(1)
-        super().__init__(dataframe=df, similarity_score="distance", attributes=dict(dist=dist, temporal_encoding=temporal_encoding))
+        super().__init__(dataframe=df, similarity_score="distance", attributes=dict(dist=dist))
 
     def matern_covariance(self, x1, x2, length_scale=1.0, nu=1.5, sigma=1.0):
         dist = np.linalg.norm(x1 - x2)
@@ -101,7 +100,7 @@ class GaussianProcess(PandasDataset):
 if __name__ == '__main__':
     from tsl.ops.imputation import add_missing_values
 
-    num_nodes, seq_len = 5, 100
+    num_nodes, seq_len = 36, 100
     dataset = GaussianProcess(num_nodes, seq_len)
     add_missing_values(dataset, p_fault=0, p_noise=0.25, min_seq=12,
                        max_seq=12 * 4, seed=56789)
