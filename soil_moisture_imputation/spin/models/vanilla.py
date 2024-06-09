@@ -505,6 +505,7 @@ class VanillaModel(nn.Module):
                     x[b, :, k, c] = pd.Series(x[b, :, k, c]).interpolate(method='linear', limit_direction='both').values
         x[np.isnan(x)] = 0
         x = torch.from_numpy(x).float().to(device)
+        mask = torch.from_numpy(mask).float().to(device)
 
         h = self.h_enc(x)
         h = mask * h + (1 - mask) * self.mask_token()
