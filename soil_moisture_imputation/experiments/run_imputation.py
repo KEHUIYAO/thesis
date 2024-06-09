@@ -31,7 +31,7 @@ from tsl.utils import parser_utils, numpy_metrics
 
 from spin.baselines import SAITS, TransformerModel, BRITS, MeanModel, InterpolationModel
 from spin.imputers import SPINImputer, SAITSImputer, BRITSImputer, MeanImputer, InterpolationImputer, DiffgrinImputer, CsdiImputer, GrinImputer, TransformerImputer
-from spin.models import SPINModel, SPINHierarchicalModel, DiffGrinModel, CsdiModel, GrinModel, SpatioTemporalTransformerModel
+from spin.models import SPINModel, SPINHierarchicalModel, DiffGrinModel, CsdiModel, GrinModel, SpatioTemporalTransformerModel, VanillaModel
 from spin.scheduler import CosineSchedulerWithRestarts
 
 from tqdm import tqdm
@@ -40,7 +40,7 @@ def parse_args():
     # Argument parser
     ########################################
     parser = ArgParser()
-    parser.add_argument("--model-name", type=str, default='st_transformer')
+    parser.add_argument("--model-name", type=str, default='vanilla')
     #parser.add_argument("--model-name", type=str, default='interpolation')
     # parser.add_argument("--dataset-name", type=str, default='gp_point')
     parser.add_argument("--dataset-name", type=str, default='air36')
@@ -118,6 +118,8 @@ def get_model_classes(model_str):
         model, filler = CsdiModel, CsdiImputer
     elif model_str == 'st_transformer':
         model, filler = SpatioTemporalTransformerModel, TransformerImputer
+    elif model_str == 'vanilla':
+        model, filler = VanillaModel, TransformerImputer
     else:
         raise ValueError(f'Model {model_str} not available.')
     return model, filler

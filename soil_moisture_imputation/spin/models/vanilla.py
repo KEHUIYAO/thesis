@@ -415,7 +415,7 @@ class SpatialEmbedding(nn.Module):
         return embed
 
 
-class SpatioTemporalTransformerModel(nn.Module):
+class VanillaModel(nn.Module):
     r"""Spatiotemporal Transformer for multivariate time series imputation.
 
     Args:
