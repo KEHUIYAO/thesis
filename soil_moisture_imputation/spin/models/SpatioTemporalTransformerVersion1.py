@@ -15,8 +15,6 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
 import math
-import numpy as np
-import pandas as pd
 
 WindowProcess = None
 WindowProcessReverse = None
@@ -343,22 +341,22 @@ class SpatioTemporalTransformerLayer(nn.Module):
                                                axis='steps',
                                                causal=causal)
 
-        self.spatial_att = MultiHeadAttention(embed_dim=hidden_size,
-                                              qdim=hidden_size,
-                                              kdim=hidden_size,
-                                              vdim=hidden_size,
-                                              heads=n_heads,
-                                              axis='nodes',
-                                              causal=False)
+        # self.spatial_att = MultiHeadAttention(embed_dim=hidden_size,
+        #                                       qdim=hidden_size,
+        #                                       kdim=hidden_size,
+        #                                       vdim=hidden_size,
+        #                                       heads=n_heads,
+        #                                       axis='nodes',
+        #                                       causal=False)
 
 
-        # input_resolution = (int(math.sqrt(spatial_dim)), int(math.sqrt(spatial_dim)))
-        # window_size = int(input_resolution[0] / 4)
-        # shift_size = int(window_size // 2)
-        #
-        # self.spatial_att = nn.ModuleList([SwinTransformerBlock(dim=hidden_size, input_resolution=input_resolution, num_heads=1, window_size=window_size, shift_size=0, mlp_ratio=1),
-        #                                   SwinTransformerBlock(dim=hidden_size, input_resolution=input_resolution, num_heads=1, window_size=window_size, shift_size=shift_size, mlp_ratio=1)
-        #                                   ])
+        input_resolution = (int(math.sqrt(spatial_dim)), int(math.sqrt(spatial_dim)))
+        window_size = int(input_resolution[0] / 4)
+        shift_size = int(window_size // 2)
+
+        self.spatial_att = nn.ModuleList([SwinTransformerBlock(dim=hidden_size, input_resolution=input_resolution, num_heads=1, window_size=window_size, shift_size=0, mlp_ratio=1),
+                                          SwinTransformerBlock(dim=hidden_size, input_resolution=input_resolution, num_heads=1, window_size=window_size, shift_size=shift_size, mlp_ratio=1)
+                                          ])
 
         self.skip_conn = nn.Linear(input_size, hidden_size)
 
@@ -492,20 +490,6 @@ class SpatioTemporalTransformerModel(nn.Module):
         # u: [batches steps (nodes) features]
         x = x * mask
 
-        device = x.device
-        x = x.detach().cpu().numpy()
-        mask = mask.detach().cpu().numpy()
-        x[mask == 0] = np.nan
-        B = x.shape[0]
-        K = x.shape[2]
-        C = x.shape[3]
-        for b in range(B):
-            for k in range(K):
-                for c in range(C):
-                    x[b, :, k, c] = pd.Series(x[b, :, k, c]).interpolate(method='linear', limit_direction='both').values
-        x[np.isnan(x)] = 0
-        x = torch.from_numpy(x).float().to(device)
-
         h = self.h_enc(x)
         h = mask * h + (1 - mask) * self.mask_token()
 
@@ -527,7 +511,7 @@ class SpatioTemporalTransformerModel(nn.Module):
             h = layer_norm(h)
             out.append(mlp(h))
 
-        x_hat = out.pop(-1) + x
+        x_hat = out.pop(-1)
         return x_hat, out
 
     @staticmethod
