@@ -343,13 +343,13 @@ class SpatioTemporalTransformerLayer(nn.Module):
                                                axis='steps',
                                                causal=causal)
 
-        self.spatial_att = MultiHeadAttention(embed_dim=hidden_size,
+        self.spatial_att = nn.ModuleList([MultiHeadAttention(embed_dim=hidden_size,
                                               qdim=hidden_size,
                                               kdim=hidden_size,
                                               vdim=hidden_size,
                                               heads=n_heads,
                                               axis='nodes',
-                                              causal=False)
+                                              causal=False)])
 
 
         # input_resolution = (int(math.sqrt(spatial_dim)), int(math.sqrt(spatial_dim)))
