@@ -506,29 +506,30 @@ class SpatioTemporalTransformerModel(nn.Module):
         x[np.isnan(x)] = 0
         x = torch.from_numpy(x).float().to(device)
 
-        h = self.h_enc(x)
-        h = mask * h + (1 - mask) * self.mask_token()
-
-        if self.condition_on_u and u is not None:
-            h = h + self.u_enc(u)
-
-        h = self.pe(h)
-
-
-        # space encoding
-        B, L, K, C = h.shape
-        spatial_emb = self.spatial_embedding_layer(B, L)
-        spatial_emb = spatial_emb.permute(0, 3, 2, 1)  # (B, C, K, L)
-        h = h + spatial_emb
-
-        out = []
-        for encoder, mlp, layer_norm in zip(self.encoder, self.readout, self.layer_norm):
-            h = encoder(h)
-            h = layer_norm(h)
-            out.append(mlp(h))
-
-        x_hat = x
-        return x_hat, out
+        # h = self.h_enc(x)
+        # h = mask * h + (1 - mask) * self.mask_token()
+        #
+        # if self.condition_on_u and u is not None:
+        #     h = h + self.u_enc(u)
+        #
+        # h = self.pe(h)
+        #
+        #
+        # # space encoding
+        # B, L, K, C = h.shape
+        # spatial_emb = self.spatial_embedding_layer(B, L)
+        # spatial_emb = spatial_emb.permute(0, 3, 2, 1)  # (B, C, K, L)
+        # h = h + spatial_emb
+        #
+        # out = []
+        # for encoder, mlp, layer_norm in zip(self.encoder, self.readout, self.layer_norm):
+        #     h = encoder(h)
+        #     h = layer_norm(h)
+        #     out.append(mlp(h))
+        #
+        # x_hat = x
+        # return x_hat, out
+        return x, []
 
     @staticmethod
     def add_model_specific_args(parser: ArgParser):
