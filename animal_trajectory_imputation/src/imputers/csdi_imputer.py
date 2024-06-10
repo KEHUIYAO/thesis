@@ -75,13 +75,13 @@ class CsdiImputer(Imputer):
         return normalized_data, mean, std
 
 
-    def min_max_scale(self, observed_data, mask):
+    def min_max_scale(self, observed_data, mask, epsilon=1e-8):
         observed_masked = observed_data * mask
         max = torch.max(observed_masked, dim=1, keepdim=True).values
         observed_masked[mask==0] = float('inf')
         min = torch.min(observed_masked, dim=1, keepdim=True).values
         observed_masked[mask == 0] = 0
-        scaled_data = (observed_data - min) / (max - min)
+        scaled_data = (observed_data - min) / (max - min + epsilon)
         scaled_data = scaled_data * mask
         return scaled_data, min, max-min
 
