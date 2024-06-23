@@ -19,7 +19,7 @@ from tsl import config, logger
 from tsl.data import SpatioTemporalDataModule, ImputationDataset
 from tsl.data.preprocessing import StandardScaler, MinMaxScaler
 from tsl.datasets import AirQuality, MetrLA, PemsBay
-from data import GaussianProcess, DescriptiveST, DynamicST, SoilMoistureSparse, SoilMoistureHB, HealingMnist, Sine, Cluster
+from data import GaussianProcess, DescriptiveST, DynamicST, SoilMoistureSparse, SoilMoistureHB, HealingMnist, Sine, Cluster, Kaust
 
 from tsl.imputers import Imputer
 from tsl.nn.metrics import MaskedMetric, MaskedMAE, MaskedMSE, MaskedMRE
@@ -43,9 +43,11 @@ def parse_args():
     parser.add_argument("--model-name", type=str, default='transformer')
     #parser.add_argument("--model-name", type=str, default='interpolation')
     # parser.add_argument("--dataset-name", type=str, default='gp_point')
-    parser.add_argument("--dataset-name", type=str, default='air36')
-    #parser.add_argument("--config", type=str, default=None)
-    parser.add_argument("--config", type=str, default='imputation/st_transformer_air36.yaml')
+    parser.add_argument("--dataset-name", type=str, default='kaust_point')
+    # parser.add_argument("--dataset-name", type=str, default='air36')
+    # parser.add_argument("--config", type=str, default=None)
+    # parser.add_argument("--config", type=str, default='imputation/st_transformer_air36.yaml')
+    parser.add_argument("--config", type=str, default='imputation/transformer.yaml')
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--check-val-every-n-epoch', type=int, default=1)
     parser.add_argument('--batch-inference', type=int, default=32)
@@ -169,6 +171,10 @@ def get_dataset(dataset_name: str):
 
     if dataset_name == 'cluster':
         return Cluster(num_nodes=36, seq_len=5000)
+
+    if dataset_name == 'kaust':
+        return add_missing_values(Kaust(), p_fault=p_fault, p_noise=p_noise,
+                                  min_seq=12, max_seq=12 * 4, seed=56789)
 
     raise ValueError(f"Invalid dataset name: {dataset_name}.")
 

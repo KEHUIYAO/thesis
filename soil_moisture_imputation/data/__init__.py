@@ -6,3 +6,4 @@ from .soil_moisture_hb import SoilMoistureHB
 from .healing_mnist import HealingMnist
 from .sine import Sine
 from .cluster import Cluster
+from .kaust import Kaust

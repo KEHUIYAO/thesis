@@ -171,7 +171,7 @@ class DescriptiveST(PandasDataset):
 if __name__ == '__main__':
     from tsl.ops.imputation import add_missing_values
 
-    num_nodes, seq_len = 36, 200
+    num_nodes, seq_len = 36, 1000
     dataset = DescriptiveST(num_nodes, seq_len, seed=42)
     add_missing_values(dataset, p_fault=0, p_noise=0.25, min_seq=12,
                        max_seq=12 * 4, seed=56789)
