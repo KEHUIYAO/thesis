@@ -43,7 +43,7 @@
 \maketitle
 
 \begin{abstract}
-Spatiotemporal (ST) raster data, consisting of measurements taken at specific locations and times, are common in fields such as environmental monitoring, climate science, and natural disaster management. Detecting anomalies in these data is crucial for applications such as wildfire monitoring. This chapter develops a novel two-step anomaly detection algorithm for ST raster data, integrating neural network-based and statistical time series anomaly detection methods with a locally adaptive weighting and screening (LAWS) strategy. The algorithm identifies anomalies by first generating p-values for each location-time point and then aggregating them using LAWS to identify spatial anomalies. Extensive simulations demonstrate the method's accuracy and scalability, particularly in large datasets. The algorithm's application to wildfire detection in the Sakha Republic demonstrates its practical effectiveness in identifying affected regions, aiding natural disaster management.
+Spatiotemporal (ST) raster data, consisting of measurements taken at specific locations and times, are common in fields such as environmental monitoring, climate science, and natural disaster management. Detecting anomalies in these data is crucial for applications such as wildfire monitoring. This chapter develops a novel two-step anomaly detection algorithm for ST raster data, integrating neural network-based and statistical time series anomaly detection methods with a locally adaptive weighting and screening (LAWS) adjustment. The algorithm identifies anomalies by first generating p-values for each location-time point and then aggregating them using LAWS to identify spatial anomalies. Extensive simulations demonstrate the method's accuracy and scalability, particularly in large datasets. The algorithm's application to wildfire detection in the Sakha Republic demonstrates its practical effectiveness in identifying affected regions, aiding natural disaster management.
 
 \end{abstract}
 
@@ -53,7 +53,7 @@ Spatiotemporal (ST) raster data are measurements of continuous or discrete ST fi
  Anomaly detection is widely used in applications such as fraud detection, intrusion detection, and military surveillance. Anomaly detection identifies data points that significantly deviate from the expected patterns in a dataset.  Detecting anomalies in ST raster data is useful in many areas. For example, in wildfire monitoring, we detect areas with unusually high thermal signatures, which could indicate the start or spread of wildfires. In hurricane forecasting, we detect unusual patterns in cloud formation and movement that could signal a hurricane's development or change in direction. In drought and flood prevention, we identify rapidly changing water levels. In disease management, we detect sudden increases in regions with higher-than-usual disease incidences.
 
 
-In ST raster data, anomalies are typically spatially contiguous groups of locations (regions) that consistently show anomalous values for one or a short duration of time stamps. Most approaches for detecting anomalies in ST raster data decompose the problem by first treating the spatial and temporal properties of outliers independently before merging them in a post-processing step. \citet{paschalidis2008spatio} proposed a method to identify traffic anomalies. They first detect anomalies in individual traffic series and then incorporate spatial information to analyze traffic activities at various network locations. \citet{faghmous2012novel} developed a novel method for ocean eddy anomaly detection by first identifying individual time series with eddy-like behavior, and then checking neighboring time series at each time step. If enough neighbors are candidates at a given time stamp, the group is labeled as an eddy. In contrast, several studies first find anomalous spatial regions and then combine them over time to identify ST anomalies. For instance, \citet{wu2010spatio} used a spatial scan statistic to find the top-k contiguous groups of locations with anomalous precipitation at each time stamp, then combined them over time to identify ST anomalies.
+In ST raster data, anomalies are typically spatially contiguous groups of locations that consistently show anomalous values for one or a short duration of time stamps. Most approaches for detecting anomalies in ST raster data decompose the problem by first treating the spatial and temporal properties of outliers independently before merging them in a post-processing step. \citet{paschalidis2008spatio} proposed a method to identify traffic anomalies. They first detect anomalies in individual traffic series and then incorporate spatial information to analyze traffic activities at various network locations. \citet{faghmous2012novel} developed a novel method for ocean eddy anomaly detection by first identifying individual time series with eddy-like behavior, and then checking neighboring time series at each time step. If enough neighbors are candidates at a given time stamp, the group is labeled as an eddy. In contrast, several studies first find anomalous spatial regions and then combine them over time to identify ST anomalies. For instance, \citet{wu2010spatio} used a spatial scan statistic to find the top-k contiguous groups of locations with anomalous precipitation at each time stamp, then combined them over time to identify ST anomalies.
 
 
 
@@ -95,7 +95,7 @@ The scan statistic was originally presented by \citet{naus1965distribution} to a
 In this paper, we propose to cast spatial anomaly detection problem into a multiple testing framework with spatial covariates and control the false discovery rate (FDR) \citep{benjamini1995controlling} instead of the family-wise error. Unlike traditional approaches assuming independence among tests, spatial multiple testing acknowledges the impact of spatial dependencies. Past research has shown that exploiting spatial structure can help identify spatial signals more accurately \citep[see, e.g.,][]{benjamini2007false, sun2015false,lei2018adapt}, but most methods assume either prior knowledge of the spatial cluster shape or that the dependence structure can be estimated well from data. In practice, spatial clusters are usually unknown or can be misspecified and estimating spatial dependence structures can be challenging in high-dimensional settings.
 %Two recently proposed methods aim to address these limitations. The first method, False Discovery Rate Smoothing \citep{tansey2018false}, uses an empirical Bayes method to exploit spatial structure in large multiple-testing problems. Unlike many existing spatial multiple testing frameworks that consider a complex dependence structure for test statistics \citep[see, e.g.,][]{leek2008general, fan2012estimating, sun2015false}, FDR Smoothing explicitly uses known spatial structure to inform each test's outcome, providing a simple way to increase the overall power of an experiment while maintaining control of the false discovery rate. 
 
-In particular, we adopt a Locally Adaptive Weighting and Screening (LAWS) \citep{cai2022laws}. The idea of LAWS is to construct robust, structure-adaptive weights according to estimated local sparsity levels to upweight or downweight the original p-values. LAWS offers several advantages. First, it is simple and robust because it bypasses complex spatial modeling and requires no prior knowledge of spatial clusters. Second, it is highly scalable and can be applied to massive spatial datasets consisting of thousands or even millions of tests, which is typically infeasible for spatial scan-based approaches or other spatial multiple-testing methods, including FDR Smoothing. Third, it outperforms many existing methods in power while asymptotically maintaining control of FDR under mild dependence conditions.
+In particular, we adopt a Locally Adaptive Weighting and Screening (LAWS) \citep{cai2022laws}. The idea of LAWS is to construct robust, structure-adaptive weights according to estimated local sparsity levels to upweight or downweight the original p-values. LAWS offers several advantages. First, it is simple and robust because it bypasses complex spatial modeling and requires no prior knowledge of spatial clusters. Second, it is highly scalable and can be applied to massive spatial datasets consisting of thousands or even millions of tests, which is typically infeasible for spatial scan-based approaches or other spatial multiple-testing methods. Third, it outperforms many existing methods in power while asymptotically maintaining control of FDR under mild dependence conditions.
 
 
 
@@ -124,9 +124,9 @@ We propose a two-step algorithm for spatiotemporal (ST) anomaly detection. The f
 
 
 \subsection{An NN-based Time Series Anomaly Detection Method} 
- The core of the NN-based time series anomaly detection method is an accurate model for time series forecasting. We adopt the DLinear model, which outperforms the more sophisticated Transformer-based models across nine real-world datasets \citep{zeng2023transformers}.
+ The core of the NN-based time series anomaly detection method is an accurate model for time series forecasting. We adopt the DLinear model, which is a simple linear model but outperforms the more sophisticated Transformer-based models across nine real-world datasets \citep{zeng2023transformers}.
  
-The DLinear model takes a historical time series, $\bm{X}_{\mathrm{in}} \in \mathbb{R}^{H_{\mathrm{in}}}$, and predicts a future time series by $\hat{\bm{X}}_{\mathrm{out}}$, where $H_{\mathrm{in}}$ and $H_{\mathrm{out}}$ are prespecified. The DLinear model can handle time series with trend and seasonal patterns. It first decomposes $\bm{X}_{\mathrm{in}}$ into a trend component and a remainder component using a moving average kernel. Two one-layer linear models are then applied to each component, and the two outputs from the layers are summed up to obtain the final output. Denote $k$ as the size of the moving average kernel, and $W_{t}$ and $W_{s}$ as the weight matrices associated with the trend and seasonal components respectively. Given $\bm{X}_{\mathrm{in}}$, we first add padding to the front and end of $\bm{X}_{\mathrm{in}}$: the front padding consists of the first element, $X_{\mathrm{in}}(1)$, repeated $(k-1)/2$ times, and the end padding consists of the last element, $X_{\mathrm{in}}(H_{\mathrm{in}})$, also repeated $(k-1)/2$ times, resulting in the padded sequence $\bm{X}_{\mathrm{padded}}$:
+The DLinear model takes a historical time series, $\bm{X}_{\mathrm{in}} \in \mathbb{R}^{H_{\mathrm{in}}}$, and predicts a future time series by $\hat{\bm{X}}_{\mathrm{out}}$, where $H_{\mathrm{in}}$ and $H_{\mathrm{out}}$ are prespecified. The DLinear model can handle time series with trend and seasonal patterns. It first decomposes $\bm{X}_{\mathrm{in}}$ into a trend component and a remainder component using a moving average kernel. Two one-layer linear models are then applied to each component, and the two outputs from the layers are summed up to obtain the final output. Denote $k$ as the size of the moving average kernel, and $\bm{W}_{t}$ and $\bm{W}_{s}$ as the weight matrices associated with the trend and seasonal components respectively. Given $\bm{X}_{\mathrm{in}}$, we first add padding to the front and end of $\bm{X}_{\mathrm{in}}$: the front padding consists of the first element, $X_{\mathrm{in}}(1)$, repeated $(k-1)/2$ times, and the end padding consists of the last element, $X_{\mathrm{in}}(H_{\mathrm{in}})$, also repeated $(k-1)/2$ times, resulting in the padded sequence $\bm{X}_{\mathrm{padded}}$:
 \begin{align}
 	% Paddings
 &\text{Front padding} = \underbrace{X_{\mathrm{in}}(1), \ldots, X_{\mathrm{in}}(1)}_{(k-1)/2 \text{ times}}\\
@@ -149,14 +149,14 @@ Denote the trend component as $\bm{X}_{\mathrm{trend}}$, and the seasonal compon
 	&\bm{X}_{\mathrm{seasonal}} = \bm{X}_{\mathrm{in}} - \bar{\bm{X}}_{\mathrm{in}}
 \end{align}
 
-The final output is the sum of the trend and seasonal components multiplied by weight matrices $W_t$ and $W_s$ respectively:
+The final output is the sum of the trend and seasonal components multiplied by weight matrices $\bm{W}_t$ and $\bm{W}_s$ respectively:
 \begin{equation}
-	\hat{\bm{X}}_{\mathrm{out}} = W_t \bm{X}_{\mathrm{trend}} + W_s \bm{X}_{\mathrm{seasonal}}
+	\hat{\bm{X}}_{\mathrm{out}} = \bm{W}_t \bm{X}_{\mathrm{trend}} + \bm{W}_s \bm{X}_{\mathrm{seasonal}}
 \end{equation}
 
 
 
-The model training procedure for any univariate time series $\bm{X} \in \mathbb{R}^L$ is described in Algorithm \ref{alg: nn training}, and the details of in-sample prediction are illustrated in Algorithm \ref{alg: in-sample prediction}. Note that the first $H_{\mathrm{in}}$ elements in $\hat{\bm{X}}$ are sepcified as NaN, since there are no historical values to use as input for the prediction.
+The model training procedure for any univariate time series $\bm{X} \in \mathbb{R}^L$ is described in Algorithm \ref{alg: nn training}. Note that the first $H_{\mathrm{in}}$ elements in $\hat{\bm{X}}$ are sepcified as NaN, since there are no historical values to use as input for the prediction.
  
 
 \begin{algorithm}
@@ -179,6 +179,32 @@ The model training procedure for any univariate time series $\bm{X} \in \mathbb{
 
 
 
+For the ST raster data $\{Y(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$, we have an individual time series $\bm{Y}_s=\{Y(s,1),\ldots, Y(s,L)\}$ at each location. One approach is to train $K$ unique time series models for each location using Algorithm \ref{alg: nn training}. When the spatial field is large, training numerous models becomes impractical. Furthermore, if each time series has relatively few observations, the risk of overfitting increases. To address these challenges, a single DLinear model can be trained to predict time series for all locations. The detailed training process for one model across all locations is outlined in Algorithm \ref{alg: nn training for multiple time series}. The main idea is to aggregate the gradient steps based on the loss from all locations.
+
+\begin{algorithm}
+\caption{Model Training for Multiple Time Series}\label{alg: nn training for multiple time series}
+\begin{algorithmic}[1] % Enables line numbering
+\State \textbf{Input:} A list of univariate time series $(\bm{X}_1,\ldots,\bm{X}_K)$, with $\bm{X}_i \in \mathbb{R}^L$, a DLinear model, and the training step $n_{\mathrm{iter}}$.
+\State \textbf{Output:} A trained DLinear model.
+
+\For{$i = 1$ \textbf{to} $n_{\mathrm{iter}}$}
+    \State Sample $j$ from Uniform$(\{1, \ldots, L-H_{\mathrm{in}}-H_{\mathrm{out}}+1\})$.
+    \For{$k = 1$ \textbf{to} $K$}
+
+    \State Select $\bm{X}_{\mathrm{in}} = \bm{X}_k[j:j+H_{\mathrm{in}}-1]$, and $\bm{X}_{\mathrm{out}} = \bm{X}_k[j+H_{\mathrm{in}}:j+H_{\mathrm{in}}+H_{\mathrm{out}}-1]$.
+    \State Calculate $\hat{\bm{X}}_{\mathrm{out}} =$ DLinear$(\bm{X}_{\mathrm{in}})$.
+    \State Update the weights in DLinear model by minimizing the loss $||\bm{X}_{\mathrm{out}} - \hat{\bm{X}}_{\mathrm{out}}||^2_2$.
+    \EndFor
+\EndFor
+\State Return the trained DLinear model.
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+
+Once the DLinear model is trained, we perform in-sample predictions for the time series at each location. The details of this process are shown in Algorithm \ref{alg: in-sample prediction}.
 
 \begin{algorithm}
 \caption{In-Sample Prediction}\label{alg: in-sample prediction}
@@ -205,7 +231,7 @@ The model training procedure for any univariate time series $\bm{X} \in \mathbb{
 
 
 
-After obtaining the predicted $\hat{\bm{X}}$, we calculate the reconstruction error $\bm{\epsilon}=\hat{\bm{X}}-\bm{X}$, where $\bm{\epsilon}$ is NaN at positions where $\hat{\bm{X}}$ is also NaN. At this stage, most forecasting methods use the reconstruction error for anomaly detection. The common practice is to set a threshold and consider errors that exceed this threshold as anomalous. The threshold can be determined manually or by using statistical approaches like the interquartile range method. Here, we propose an alternative approach that converts reconstruction errors into p-values. We assume that if there are no anomalies in the dataset, the distribution of $\bm{\epsilon}$ will follow a normal distribution. To find the error distribution without anomalies, we first use the interquartile range method to remove the outliers from $\bm{\epsilon}$, and then calculate the sample mean and sample standard deviation from the remaining errors as estimations of the error distribution's mean and standard deviation. Based on this error distribution, we compute the p-value for each point in the dataset. The details are outlined in Algorithm \ref{alg: convert errors to p-values}. The primary reason for converting reconstruction errors to p-values is that these p-values, obtained during the time series anomaly detection step, are well-suited for the subsequent spatial anomaly detection step, which we will discuss in detail in the next section.
+Let $\hat{Y}(s;t)$ be the predicted value at time $t$ and location $s$, and let the reconstruction error be $\epsilon(s;t)=\hat{Y}(s;t)-Y(s;t)$. Collect all $\epsilon(s;t)$ values into a single vector, denoted as $\bm{\epsilon}$. At this stage, most forecasting methods use the reconstruction error for anomaly detection. The common practice is to set a threshold and consider errors that exceed this threshold as anomalous. The threshold can be determined manually or by using statistical approaches like the interquartile range method. Here, we propose an alternative approach that converts reconstruction errors into p-values. We assume that if there are no anomalies in the dataset, the distribution of $\bm{\epsilon}$ will follow a normal distribution. To find the error distribution without anomalies, we first use the interquartile range method to remove the outliers from $\bm{\epsilon}$, and then calculate the sample mean and sample standard deviation from the remaining errors as estimations of the error distribution's mean and standard deviation. Based on this error distribution, we compute the p-value for each point in the dataset. The details are outlined in Algorithm \ref{alg: convert errors to p-values}. The primary reason for converting reconstruction errors to p-values is that these p-values, obtained during the time series anomaly detection step, are well-suited for the subsequent spatial anomaly detection step, which we will discuss in detail in the next section.
 
 
 
@@ -213,54 +239,34 @@ After obtaining the predicted $\hat{\bm{X}}$, we calculate the reconstruction er
 \begin{algorithm}
 \caption{Convert Reconstruction Error to P-values}\label{alg: convert errors to p-values}
 \begin{algorithmic}[1]
-\State \textbf{Input:} vector of reconstruction errors $\bm{\epsilon}$.
-\State \textbf{Output:} vector of p-values $\bm{p}$.
-
+\State \textbf{Input:} Reconstruction errors $\{\epsilon(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$.
+\State \textbf{Output:} P-values $\{p(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$.
+\State Collect all $\epsilon(s;t)$ values into a single vector, denoted as $\bm{\epsilon}$.
 \State Remove all NaN values from $\bm{\epsilon}$.
 \State Compute first quartile (Q1), third quartile (Q3), and IQR of $\bm{\epsilon}$.
 \State Set bounds: $\text{LB} = Q1 - 1.5 \times \text{IQR}$, $\text{UB} = Q3 + 1.5 \times \text{IQR}$.
 \State Filter $\bm{\epsilon}$ within bounds [$\text{LB}$, $\text{UB}$].
 \State Compute mean $\mu$ and standard deviation $\sigma$ of filtered $\bm{\epsilon}$.
 
-\State Initialize empty vector $\bm{p}$.
-\For{$\epsilon \in \bm{\epsilon}$}
-    \If{$\epsilon$ is not NaN}
-        \State Compute Z-score: $Z = (\epsilon - \mu)/\sigma$.
-        \State Compute p-value: $p = 2 \times (1 - \Phi(|Z|))$.
-        \State Append $p$ to $\bm{p}$.
-    \Else
-        \State Append NaN to $\bm{p}$.
-    \EndIf
-\EndFor
-
-\State \textbf{return} $\bm{p}$.
-\end{algorithmic}
-\end{algorithm}
-
-
-For the ST raster data $\{Y(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$, we have an individual time series $\bm{Y}_s=\{Y(s,1),\ldots, Y(s,L)\}$ at each location. One approach is to train $K$ unique time series models for each location using Algorithm \ref{alg: nn training}. Each model is then used for in-sample prediction, and the reconstruction errors are converted to p-values following \ref{alg: convert errors to p-values} following algorithm \ref{alg: convert errors to p-values}. These p-values are denoted as $\{p(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$. 
-
-When the spatial field is extremely large, training a large number of models becomes infeasible. Additionally, if each time series contains relatively few observations, the risk of overfitting increases. To mitigate these issues, a single DLinear model can be trained to predict time series for all locations. The detailed training process for one model across all locations is described in Algorithm \ref{alg: nn training for multiple time series}. The key idea is to aggregate the gradient steps based on the loss from all locations.
-
-
-\begin{algorithm}
-\caption{Model Training for Multiple Time Series}\label{alg: nn training for multiple time series}
-\begin{algorithmic}[1] % Enables line numbering
-\State \textbf{Input:} A list of univariate time series $(\bm{X}_1,\ldots,\bm{X}_K)$, with $\bm{X}_i \in \mathbb{R}^L$, a DLinear model, and the training step $n_{\mathrm{iter}}$.
-\State \textbf{Output:} A trained DLinear model.
-
-\For{$i = 1$ \textbf{to} $n_{\mathrm{iter}}$}
-    \State Sample $j$ from Uniform$(\{1, \ldots, L-H_{\mathrm{in}}-H_{\mathrm{out}}+1\})$.
-    \For{$k = 1$ \textbf{to} $K$}
-
-    \State Select $\bm{X}_{\mathrm{in}} = \bm{X}_k[j:j+H_{\mathrm{in}}-1]$, and $\bm{X}_{\mathrm{out}} = \bm{X}_k[j+H_{\mathrm{in}}:j+H_{\mathrm{in}}+H_{\mathrm{out}}-1]$.
-    \State Calculate $\hat{\bm{X}}_{\mathrm{out}} =$ DLinear$(\bm{X}_{\mathrm{in}})$.
-    \State Update the weights in DLinear model by minimizing the loss $||\bm{X}_{\mathrm{out}} - \hat{\bm{X}}_{\mathrm{out}}||^2_2$.
+\State Initialize empty matrix $p(s;t)$, $Z(s;t)$.
+\For{$s \in \mathbb{D}_s$}
+    \For{$t \in \mathbb{D}_t$}
+        \If{$\epsilon(s;t)$ is not NaN}
+            \State Compute Z-score: $Z(s;t) = (\epsilon(s;t) - \mu)/\sigma$.
+            \State Compute p-value: $p(s;t) = 2 \times (1 - \Phi(|Z(s;t)|))$.
+        \Else
+            \State $p(s;t) = \text{NaN}$
+        \EndIf
     \EndFor
 \EndFor
-\State Return the trained DLinear model.
+
+\State \textbf{return} $\{p(s;t):s\in \mathbb{D}_s, t\in \mathbb{D}_t\}$.
 \end{algorithmic}
 \end{algorithm}
+
+
+
+
 
 
 
@@ -285,13 +291,9 @@ Let $\hat{Y}(s;t)=\hat{\beta}_{0s}+Y(s;t-1)\hat{\beta}_{1s}+t\hat{\beta}_{2s}$ b
 	&r(s;t)=e(s;t)/\big[\hat{\sigma}_s\sqrt{\{1-(\bm{H}_s)_{t-1, t-1}\}}\big]\\
 	&Z(s;t)=r(s;t)\{(L-5)/(L-4-r(s;t)^2)\}^{1/2}.
 \end{align}
-In theory, $Z(s;t)$ follows a Student $t$ distribution with $L-5$ degrees of freedom. Therefore, we can calculate the p-value for each observation. Define $\Phi_{L-5}$ as the cumulative density function of the t distribution with $L-5$ degrees of freedom. Denote the p-value at location $s$ and time $t$ as $p(s;t)$, and $p(s;t)$ is calculated as:
+In theory, $Z(s;t)$ follows a Student $t$ distribution with $L-5$ degrees of freedom. Therefore, we can calculate the p-value for each observation. Define $F_{t,L-5}$ as the cumulative density function of the $t$ distribution with $L-5$ degrees of freedom,  $p(s;t)$ is calculated as:
 \begin{equation}\label{eq: p-value}
-    p(s;t) = 
-    \begin{cases} 
-        2\Phi_{L-5}(Z(s;t)), & \text{if } Z(s;t) < 0, \\
-        2(1 - \Phi_{L-5}(Z(s;t))), & \text{if } Z(s;t) \ge 0.
-    \end{cases}
+p(s;t) = 2 \times (1 - F_{t,L-5}(|Z(s;t)|))
 \end{equation}
 
 
@@ -299,7 +301,7 @@ In theory, $Z(s;t)$ follows a Student $t$ distribution with $L-5$ degrees of fre
 
 
 \subsection{Spatial Anomaly Detection using LAWS}\label{sec:LAWS}
-The locally adaptive weighting and screening (LAWS) method is designed for spatial multiple testing by incorporating local spatial patterns into inference without prior cluster knowledge in three steps (Cai et al., 2022). First, LAWS estimates the local sparsity structure $\pi(s)$ using a screening approach. Second, LAWS constructs spatially adaptive weights $w(s)$ to up-weight/down-weight the p-values in neighborhoods where signals are abundant/sporadic. Finally, LAWS selects an appropriate threshold to adjust for multiplicity. The subsequent section will provide detailed explanations of these three steps.
+The locally adaptive weighting and screening (LAWS) method is designed for spatial multiple testing by incorporating local spatial patterns into inference without prior cluster knowledge in three steps (Cai et al., 2022). First, LAWS estimates the local sparsity structure $\pi(s)$ using a screening approach. Second, LAWS constructs spatially adaptive weights $w(s)$ to up-weight/down-weight the p-values in neighborhoods where signals are abundant/sporadic. Finally, LAWS selects an appropriate threshold to adjust for multiplicity. The subsequent section will provide detailed explanations of these steps.
 
  
 
@@ -378,11 +380,10 @@ Under mild conditions, the procedure is guaranteed to control the false discover
 
 
 \section{Simulation Study}\label{sec: simulation}
-In this section, we conduct a simulation study to evaluate the performance of our two-step anomaly detection method for the ST raster data. We consider both short and long time series, with $\mathbb{D}_t=\{1,\ldots,20\}$ and $\mathbb{D}_t=\{1,\ldots,500\}$, respecitvely. There are two reasons for including short time series: first, the  real data we are analyzing consists of only 20 observations per time series; second, we aim to assess how the performance of the NN-based method changes when the data ranges from sparse to abundant.
+In this section, we conduct a simulation study to evaluate the performance of our two-step anomaly detection method for the ST raster data. We consider both short and long time series, with $\mathbb{D}_t=\{1,\ldots,20\}$ and $\mathbb{D}_t=\{1,\ldots,500\}$, respecitvely. The primary reason for including a short time series is that the real data we are analyzing consists of only 20 observations per time series. Additionally, we consider $\mathbb{D}_s$ to be a $100\times 100$ grid. 
 
-For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (IID) Gaussian noise. We also examine both point and collective anomalies in time series that are contiguous in space, with varying anomaly magnitudes. In each simulation, $\mathbb{D}_s$ is assumed to be a $100\times 100$ grid. 
-
-To generate the ST raster data $\{Y(s;t)\}$, we first select a type of time series and then generate the corresponding time series data for all locations within the grid. For simplicity, we do not consider the spatial correlation when generating the raster data. 
+For each scenario, we consider various types of time series, including autoregressive series, series with trends and seasonal patterns, and independent and identically distributed (IID) Gaussian noise. We also examine both point and collective anomalies in time series that are contiguous in space, with varying anomaly magnitudes.  
+To generate the ST raster data $\{Y(s;t)\}$, we first select a type of time series and then generate the corresponding time series data for all locations within the grid. For simplicity, we do not consider the spatial correlation when generating the data. 
 
 \subsection{Types of Time Series}
 \subsubsection*{Autoregressive Time Series of Order $p$}
@@ -435,14 +436,14 @@ Figure \ref{fig: simulation long time series} shows the results for the long tim
 Figure \ref{fig: simulation short time series} shows the results for the short time series scenario. In the trend and seasonal pattern setting, both methods generally performed poorly, likely due to overfitting caused by the limited number of observations. In the other two settings, both methods perform similarly for point anomalies, but the NN-based method tends to perform better for collective anomalies. 
 
 
+The simulation results indicate that the LAWS procedure significantly enhances spatial anomaly detection. For complex time series with trends and seasonality, the NN-based method can capture patterns within the data because it is fully data-driven. The statistical method, on the other hand, lacks flexibility in model specification and thus performs less accurately. When the time series is short or simple, the NN-based method can reduce the input size to decrease the risk of overfitting and achieve performance comparable to the statistical method.
 
-In summary, the simulation results indicate that the LAWS procedure significantly enhances spatial anomaly detection. When comparing two time series anomaly detection methods, for complex time series that include trend and seasonality and are long enough to contain sufficient information, the NN-based method can capture patterns within the data because it is fully data-driven. The statistical method, on the other hand, may lack the flexibility for model specification and thus perform less accurately. When the time series is short or simple, the NN-based method can decrease the input size to reduce the risk of overfitting and achieve performance comparable to the statistical method.
 
 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../figure/simulation_long_time_series.png}
+    \includegraphics[width=0.8\textwidth]{../figure/simulation_long_time_series.png}
     \caption{Performance comparison of two time series anomaly detection methods in long time series scenarios. The methods compared are: a neural network-based method (NN, represented by circles) and the Studentized Residual Outlier Test (represented by squares). The performance is evaluated under different conditions: trend with seasonal patterns, IID noise, and AR(2) processes. The detection is assessed for both point anomalies and collective anomalies, across different shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. Red markers indicate the presence of spatial anomaly detection using LAWS, while blue markers indicate its absence.}
     \label{fig: simulation long time series}
 \end{figure}
@@ -450,7 +451,7 @@ In summary, the simulation results indicate that the LAWS procedure significantl
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../figure/simulation_short_time_series.png}
+    \includegraphics[width=0.8\textwidth]{../figure/simulation_short_time_series.png}
     \caption{Performance comparison of two time series anomaly detection methods in short time series scenarios. The methods compared are: a neural network-based method (NN, represented by circles) and the Studentized Residual Outlier Test (represented by squares). The performance is evaluated under different conditions: trend with seasonal patterns, IID noise, and AR(2) processes. The detection is assessed for both point anomalies and collective anomalies, across different shock magnitudes (1, 2, and 3), using the Area Under the Curve (AUC) metric. Red markers indicate the presence of spatial anomaly detection using LAWS, while blue markers indicate its absence.}
     \label{fig: simulation short time series}
 \end{figure}
@@ -489,14 +490,12 @@ The Sakha Republic, also known as Yakutia, is a vast region in the Russian Feder
 \subsection{Actual Data Example}
 For the analysis of the real dataset, $\mathbb{D}_t=\{1, \ldots, 20\}$ and $\mathbb{D}_s=\{(x, y), 1 \leq x \leq 278, 1 \leq y \leq 229\}$. We apply both the NN-based and the statistical methods, with and without LAWS adjustment. Given the short time series, for the NN-based method, we set $H_{\mathrm{in}}=1$ and $H_{out}=1$ and train a single DLinear model for all locations. For all methods, we set the p-value threshold $\alpha=0.05$.
 
- It's important to note that we consider unusually low EVI values as indicative of potential fire events. Since the residual is the predicted value minus the actual value, unusually low EVI values result in unusually large residuals. Therefore, we only focus on large residuals. To accommodate this, we adjust the two-sided p-value used in Algorithm \ref{alg: convert errors to p-values} and Equation (\ref{eq: p-value}) to a one-sided p-value, defined as follows:
-\begin{equation}\label{eq: one-sided p-value}
-	p(s;t)= 1-\Phi_{L-5}\{Z(s;t)\}.
-\end{equation}
+ It's important to note that we consider unusually low EVI values as indicative of potential fire events. Since the residual is the predicted value minus the actual value, unusually low EVI values result in unusually large residuals. Therefore, we only focus on large residuals. To accommodate this, we adjust the two-sided p-value to a one-sided p-value. Specifically, in Algorithm \ref{alg: convert errors to p-values}, the p-value is changed to $p(s;t)= 1-\Phi\{Z(s;t)\}$ and in Equation (\ref{eq: p-value}), it is changed to $p(s;t)= 1-F_{t,L-5}\{Z(s;t)\}$.
 
 
 
-The results for the NN-based method and the statistical method are shown in Figure \ref{fig: nn_real_data} and Figure \ref{fig: statistical_method_real_data}, respectively. The left panel in each figure shows fire detection by the standalone NN-based method, while the right panel includes the LAWS adjustment. In these figures, black areas represent detected ST anomalies, indicating wildfire occurrences.
+
+The results for the NN-based method and the statistical method are shown in Figure \ref{fig: nn_real_data} and Figure \ref{fig: statistical_method_real_data}, respectively. The left panel in each figure shows fire detection by the standalone NN-based and statistical methods, while the right panel includes the LAWS adjustment. In these figures, black areas represent detected ST anomalies, indicating wildfire occurrences.
 
 The standalone versions of both methods show many scattered detections over the years. Since wildfires typically affect contiguous regions, these detections might be due to random errors. Additionally, both methods detected large areas of fire in 2013 and 2020, which, despite the lack of true fire occurrence data, seem dubious and might represent false alarms. With the LAWS adjustment, both methods prefer identifying contiguous regions as anomalies, aligning with the idea that wildfires affect continuous areas and demonstrating better robustness against noise compared to the standalone methods.
 
@@ -515,7 +514,7 @@ The standalone versions of both methods show many scattered detections over the 
          \includegraphics[width=\textwidth]{../figure/nn_laws.png}
          \caption{}
      \end{subfigure}
-         \caption{Wildfire detection using the NN-based method. Black areas represent detected ST anomalies. (a) Without LAWS adjustment. (b) With LAWS adjustment.}
+         \caption{Wildfire detection results using the NN-based method for the Yakutia region. Each subfigure shows the detected ST anomalies over the 20-year period from 2002 to 2021. Detected anomalies are represented by black areas. (a) Detection results without the LAWS adjustment. (b) Detection results with the LAWS adjustment.}
       \label{fig: nn_real_data}
 \end{figure}
 
@@ -534,7 +533,7 @@ The standalone versions of both methods show many scattered detections over the 
          \includegraphics[width=\textwidth]{../figure/statistical_method_laws}
          \caption{}
      \end{subfigure}
-         \caption{Wildfire detection using the statistical method. Black areas represent detected ST anomalies. (a) Without LAWS adjustment. (b) With LAWS adjustment.}
+         \caption{Wildfire detection results using the statistical method for the Yakutia region. Each subfigure shows the detected ST anomalies over the 20-year period from 2002 to 2021. Detected anomalies are represented by black areas. (a) Detection results without the LAWS adjustment. (b) Detection results with the LAWS adjustment.}
       \label{fig: statistical_method_real_data}
 \end{figure}
 
