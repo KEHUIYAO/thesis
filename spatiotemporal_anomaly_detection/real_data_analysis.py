@@ -15,142 +15,6 @@ import sklearn.neighbors
 from scipy.spatial.distance import cdist
 from anomaly_detection import spatiotemporal_anomaly_detection
 
-def laws_procedure(p_values, pis, weights, alpha):
-    """the laws procedure for FDR control.
-
-    Args:
-        p_values (array_like): original p_values at each location.
-        pis (array_like): sparsity level for each location.
-        weights (array_like): adaptive weights at each location.
-        alpha (float): threshold to adjust multiplicity.
-    Returns:
-        array_like: a binary array with the same dimension as the p_values. The position where a signal is detected is equal to 1.
-    """
-
-    # calculate weighted p-values
-    weighted_p_values = p_values / weights
-    # weighted_p_values[weighted_p_values > 1] = 1
-
-    # order the weighted p-values
-    weighted_p_values_flattened = weighted_p_values.flatten()  # flatten before sort
-    weighted_p_values_flattened_sorted_ind = np.argsort(weighted_p_values_flattened)
-
-
-    # find the largest j which satisfy the threshold
-    j = len(weighted_p_values_flattened)
-    while j > 0:
-        index = weighted_p_values_flattened_sorted_ind[j-1]
-        if np.sum(pis * weighted_p_values_flattened[index], axis=None) / j <= alpha:
-            break
-        else:
-            j -= 1
-    # print('j equals %d'%j)
-    # output
-    output = np.zeros(len(weighted_p_values_flattened))
-    if j > 0:
-        signal_ind = weighted_p_values_flattened_sorted_ind[:j]  # extract the ind of the signal
-        output[signal_ind] = 1
-    output = np.reshape(output, p_values.shape)
-    return output
-
-
-def sparsity_estimation_via_screening(p_values, locations, tau, h, kernel='gaussian'):
-    """estimate the sparsity level pis
-
-    Args:
-        p_values (array_like): original p_values at each location.
-        locations (array_like): the spatial location information.
-        tau (float): threshold to apply screening
-        h (float): bandwidth parameter when doing kernel density estimation
-        kernel (str): The form of these kernels is as follows: 'gaussian', 'tophat'
-
-
-
-    Returns:
-        array_like: sparsity estimation at each location
-
-    """
-    n_feature = locations.shape[-1]  # the last dimension of locations is the feature used to calculate the distance
-    locations_flattened = locations.reshape([-1, n_feature])
-
-    kd_tree = sklearn.neighbors.KDTree(locations_flattened)
-    sum_vs_flattened = kd_tree.kernel_density(locations_flattened, h=h, kernel=kernel)
-
-    p_values_flattened = p_values.flatten()
-    locations_flattened_with_p_values_greater_than_tau = locations_flattened[p_values_flattened>tau, :]  # filter those locations with p_values greater than tau
-    kd_tree_with_p_values_greater_than_tau = sklearn.neighbors.KDTree(locations_flattened_with_p_values_greater_than_tau)
-    sum_vs_flattened_with_p_values_greater_than_tau = kd_tree_with_p_values_greater_than_tau.kernel_density(locations_flattened, h=h, kernel=kernel)
-
-    pis_flattened = 1 - sum_vs_flattened_with_p_values_greater_than_tau / ((1-tau)*sum_vs_flattened)
-    # print('the estimated maximum pis is %.4f'%max(pis_flattened))
-    pis = pis_flattened.reshape(p_values.shape)
-
-    # stablize the result
-    v = 1e-8
-    pis[pis>1-v] = 1-v
-    pis[pis<v] = v
-
-    return pis
-
-
-def laws_procedure_2D_grid(p_values, tau=0.1, h=5, alpha=0.05):
-    """Laws procedure on a grid
-
-    Args:
-        p_values (2d numpy array): original p_values at each location.
-        tau (float): threshold to apply screening
-        h (float): bandwidth parameter when doing kernel density estimation
-        alpha (float): threshold to adjust multiplicity.
-
-    Returns:
-        array_like: a binary array with the same dimension as the p_values. The position where a signal is detected is equal to 1.
-    """
-
-    # sparsity estimation
-    ROW = p_values.shape[0]
-    COL = p_values.shape[1]
-    x = np.repeat(np.arange(ROW), COL)
-    y = np.tile(np.arange(ROW), COL)
-    locations = np.stack([x, y]).T.reshape([ROW, COL, 2])
-
-    pis_est = sparsity_estimation_via_screening(p_values, locations, tau, h)
-
-    # laws procedure
-    weights = pis_est / (1 - pis_est)
-    output = laws_procedure(p_values, pis_est, weights, alpha)
-    return output
-
-
-def locationwise_time_series_anomaly_detection(data, alpha=0.05):
-    """Perform separate time-series outlier test for each location
-
-    Args:
-        data (3d numpy array): the first two dimensions are space coordinates, the last dimension is time
-        alpha (float): unadjusted level of false alarm rate
-
-    Returns:
-        studentized residuals (3d array), unadjusted p values (3d array), bonferroni corrected p values (3d array).
-
-    """
-    studentized_resid = np.zeros([data.shape[0], data.shape[1], data.shape[2]])
-    unadj_pvalue = np.ones([data.shape[0], data.shape[1], data.shape[2]])
-
-    for i in range(data.shape[0]):
-
-        # if i > 0 and i % 10 == 0:
-        #     print(i)
-
-        for j in range(data.shape[1]):
-            df = pd.DataFrame({'Y': data[i, j, 1:], 'X': data[i, j, :-1], 't': np.arange(1, data.shape[2])})
-            fit = statsmodels.formula.api.ols('Y~X+t', data=df).fit()
-            outlier = fit.outlier_test()
-            # print(outlier)
-            # starting from t=2
-            studentized_resid[i, j, 1:] = outlier['student_resid']
-            unadj_pvalue[i, j, 1:] = outlier['unadj_p']
-
-    return studentized_resid, unadj_pvalue
-
 
 
 def crop_rasterfile_using_shapefile(rasterfile_path, crop_shapefile_path, path_out, show_figures=False):
@@ -247,38 +111,47 @@ if __name__ == '__main__':
             ax[i, j].imshow(data[..., ind], cmap='gray_r')
             ax[i, j].axis('off')
 
+            # add year to the title of each subplot, font size is 8
+            ax[i, j].set_title(f'{2002 + ind}', fontsize=8)
+
+
     plt.show()
     fig.savefig('figure/raw_data.png')
 
-    # # NN no laws
-    # res_list= spatiotemporal_anomaly_detection(data.reshape(n_row*n_col, -1), locations, ts='NN', laws=False, one_sided='right', horizon=1, input_size=1)
-    # res = res_list[2].reshape(n_row, n_col, -1)
-    #
-    # fig, ax = plt.subplots(4, 5)
-    # for i in range(4):
-    #     for j in range(5):
-    #         ind = i * 5 + j
-    #         temp = res[..., ind]
-    #         ax[i, j].imshow(temp, cmap='gray_r')
-    #         ax[i, j].set_xticks([])
-    #         ax[i, j].set_yticks([])
-    #
-    # plt.show()
-    # fig.savefig(f'figure/nn_no_laws.png')
-    #
-    # # NN laws
-    # res_list = spatiotemporal_anomaly_detection(data.reshape(n_row * n_col, -1), locations, ts='NN', laws=True,
-    #                                             one_sided='right', horizon=1, input_size=1)
-    # res = res_list[2].reshape(n_row, n_col, -1)
-    # fig, ax = plt.subplots(4, 5)
-    # for i in range(4):
-    #     for j in range(5):
-    #         ind = i * 5 + j
-    #         ax[i, j].imshow(res[..., ind], cmap='gray_r')
-    #         ax[i, j].set_xticks([])
-    #         ax[i, j].set_yticks([])
-    # plt.show()
-    # fig.savefig(f'figure/nn_laws.png')
+    # NN no laws
+    res_list= spatiotemporal_anomaly_detection(data.reshape(n_row*n_col, -1), locations, ts='NN', laws=False, one_sided='right', horizon=1, input_size=1)
+    res = res_list[2].reshape(n_row, n_col, -1)
+
+    fig, ax = plt.subplots(4, 5)
+    for i in range(4):
+        for j in range(5):
+            ind = i * 5 + j
+            temp = res[..., ind]
+            ax[i, j].imshow(temp, cmap='gray_r')
+            ax[i, j].set_xticks([])
+            ax[i, j].set_yticks([])
+            # add year to the title of each subplot, font size is 8
+            ax[i, j].set_title(f'{2002 + ind}', fontsize=8)
+
+
+    plt.show()
+    fig.savefig(f'figure/nn_no_laws.png')
+
+    # NN laws
+    res_list = spatiotemporal_anomaly_detection(data.reshape(n_row * n_col, -1), locations, ts='NN', laws=True,
+                                                one_sided='right', horizon=1, input_size=1)
+    res = res_list[2].reshape(n_row, n_col, -1)
+    fig, ax = plt.subplots(4, 5)
+    for i in range(4):
+        for j in range(5):
+            ind = i * 5 + j
+            ax[i, j].imshow(res[..., ind], cmap='gray_r')
+            ax[i, j].set_xticks([])
+            ax[i, j].set_yticks([])
+            # add year to the title of each subplot, font size is 8
+            ax[i, j].set_title(f'{2002 + ind}', fontsize=8)
+    plt.show()
+    fig.savefig(f'figure/nn_laws.png')
 
 
 
@@ -294,6 +167,8 @@ if __name__ == '__main__':
             ax[i, j].imshow(temp, cmap='gray_r')
             ax[i, j].set_xticks([])
             ax[i, j].set_yticks([])
+            # add year to the title of each subplot, font size is 8
+            ax[i, j].set_title(f'{2002 + ind}', fontsize=8)
 
     plt.show()
     fig.savefig(f'figure/statistical_method_no_laws.png')
@@ -309,5 +184,7 @@ if __name__ == '__main__':
             ax[i, j].imshow(res[..., ind], cmap='gray_r')
             ax[i, j].set_xticks([])
             ax[i, j].set_yticks([])
+            # add year to the title of each subplot, font size is 8
+            ax[i, j].set_title(f'{2002 + ind}', fontsize=8)
     plt.show()
     fig.savefig(f'figure/statistical_method_laws.png')
