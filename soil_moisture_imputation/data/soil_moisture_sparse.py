@@ -77,19 +77,19 @@ class SoilMoistureSparse(PandasDataset, MissingValuesMixin):
         rows, cols = y.shape
 
         p_missing = 0.2
-        ################# missing completely for selected time point ##################
-        time_points_to_eval = self.rng.choice(rows, int(p_missing * rows), replace=False)
-        eval_mask = np.zeros_like(y)
-        eval_mask[time_points_to_eval, :] = 1
-        self.original_data['eval_mask'] = eval_mask
-        ################# missing completely for selected time point ##################
-
-        # ################## missing at random ##################
+        # ################# missing completely for selected time point ##################
+        # time_points_to_eval = self.rng.choice(rows, int(p_missing * rows), replace=False)
         # eval_mask = np.zeros_like(y)
-        # # randomly mask p_missing of the data
-        # eval_mask[self.rng.rand(*y.shape) < p_missing] = 1
+        # eval_mask[time_points_to_eval, :] = 1
         # self.original_data['eval_mask'] = eval_mask
-        # ################## missing at random ##################
+        # ################# missing completely for selected time point ##################
+
+        ################## missing at random ##################
+        eval_mask = np.zeros_like(y)
+        # randomly mask p_missing of the data
+        eval_mask[self.rng.rand(*y.shape) < p_missing] = 1
+        self.original_data['eval_mask'] = eval_mask
+        ################## missing at random ##################
 
 
 
