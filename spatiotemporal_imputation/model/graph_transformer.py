@@ -28,7 +28,7 @@ class GraphTransformerEncodingLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout):
         super().__init__()
         self.transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True)
-        self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model, num_layers=1)
+        self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model, num_layers=1, norm='layer')
 
     def forward(self, x, edge_index, edge_weight):
         # x: (B, K, L, D)
