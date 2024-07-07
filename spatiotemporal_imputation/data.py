@@ -109,6 +109,7 @@ class SoilMoisture():
         date_end = '2022-12-31'
         self.y, self.x, self.space_coords, self.time_coords = self.load(date_start, date_end)
         self.mask = np.where(~np.isnan(self.y), 1, 0)
+        self.y[self.mask == 0] = 0
         self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
 
     
