@@ -141,6 +141,10 @@ class GraphTransformer(pl.LightningModule):
         y = batch['y']
         training_mask = batch['training_mask']
         target_mask = batch['target_mask']
+
+        if target_mask.sum() == 0:
+            return None
+
         y_observed = y * training_mask
         y_target = y * target_mask
         edge_index = batch['edge_index']
@@ -164,6 +168,12 @@ class GraphTransformer(pl.LightningModule):
         y = batch['y']
         mask = batch['mask']
         val_mask = batch['val_mask']
+
+        # Check if val_mask.sum() == 0 and skip the batch if true
+        if val_mask.sum() == 0:
+            return None
+
+
         eval_mask = batch['eval_mask']
         observed_mask = mask - eval_mask - val_mask
         y_observed = y * observed_mask
@@ -188,6 +198,12 @@ class GraphTransformer(pl.LightningModule):
         y = batch['y']
         mask = batch['mask']
         eval_mask = batch['eval_mask']
+
+        if eval_mask.sum() == 0:
+            return None
+
+
+
         observed_mask = mask - eval_mask
         y_observed = y * observed_mask
         y_target = y * eval_mask
