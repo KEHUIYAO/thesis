@@ -1,0 +1,16 @@
+# config.yaml
+dataset: 'KaustCompetition'
+model: 'DCN'
+val_ratio: 0.1
+test_ratio: 0.1
+additional_st_covariate: 'st_basis'
+batch_size: 512 
+input_dim: 357
+cross_num: 2
+dnn_hidden_units: [128, 128, 128, 128, 128, 128, 128, 128, 128]
+dnn_dropout: 0.0
+lr: 0.001
+weight_decay: 0.0001
+max_epochs: 300
+dataset_index: 1
+loss_func: 'mse'
