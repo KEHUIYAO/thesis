@@ -5,6 +5,70 @@ from torch_geometric.nn import GCN
 import torch.nn.functional as F
 from torchvision.ops.misc import MLP
 
+class GraphConvLayer(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(GraphConvLayer, self).__init__()
+        self.linear = nn.Linear(in_channels, out_channels)
+
+    def forward(self, x, adj):
+        # x: (B, K, L, D)
+        # adj: (B, K, K)
+        B, K, L, D = x.size()
+        
+        # Degree matrix
+        deg = torch.sum(adj, dim=-1)  # (B, K)
+        deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        
+        # Normalized adjacency matrix
+        norm = deg_inv_sqrt * adj * deg_inv_sqrt.transpose(-1, -2)  # (B, K, K)
+        
+        # Matrix multiplication over all temporal slices at once
+        x = x.permute(0, 2, 1, 3)  # (B, L, K, D)
+        x = torch.einsum('bkk,blkd->blkd', norm, x)  # (B, L, K, D)
+        x = x.permute(0, 2, 1, 3)  # (B, K, L, D)
+        
+        # Apply linear layer
+        out = self.linear(x)
+        
+        return out
+
+class GCN(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels):
+        super(GCN, self).__init__()
+        self.conv1 = GraphConvLayer(in_channels, hidden_channels)
+        self.layer_norm1 = nn.LayerNorm(hidden_channels)
+        self.relu = nn.ReLU()
+        self.conv2 = GraphConvLayer(hidden_channels, out_channels)
+        self.layer_norm2 = nn.LayerNorm(out_channels)
+
+    def edge_index_to_adj(self, edge_index, edge_weight, num_nodes):
+        # edge_index: (2, E)
+        # edge_weight: (E)
+        # num_nodes: K
+        adj = torch.zeros((num_nodes, num_nodes), device=edge_index.device)
+        adj[edge_index[0], edge_index[1]] = edge_weight
+        return adj
+
+    def forward(self, x, edge_index, edge_weight):
+        # x: (B, K, L, D)
+        # edge_index: (B, 2, E)
+        # edge_weight: (B, E)
+        B, K, L, D = x.size()
+        
+        # Create the adjacency matrix for each batch element
+        adj = torch.zeros((B, K, K), device=x.device)
+        for b in range(B):
+            adj[b] = self.edge_index_to_adj(edge_index[b], edge_weight[b], K)
+        
+        x = self.conv1(x, adj)
+        x = self.layer_norm1(x)
+        x = self.relu(x)
+        x = self.conv2(x, adj)
+        x = self.layer_norm2(x)
+        return x
+
+
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
@@ -24,33 +88,35 @@ class PositionalEncoding(nn.Module):
         x = x + pe
         return self.dropout(x)
     
+
 class GraphTransformerEncodingLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout):
         super().__init__()
         self.transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True)
-        self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model, num_layers=1, norm='layer')
+        self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model)
 
     def forward(self, x, edge_index, edge_weight):
         # x: (B, K, L, D)
         # edge_index: (B, 2, E)
         # edge_weight: (B, E)
         B, K, L, D = x.size()
+        
+        # Apply Transformer Encoder
         x = x.view(B * K, L, D)
         x = self.transformer_encoder_layer(x)
         x = x.view(B, K, L, D)
-
-
-        output = x.clone()  # Create a copy of x to store the results
-
-        for b in range(B):
-            for l in range(L):         
-                x_slice = x[b, :, l, :]
-                x_slice = self.gcn(x_slice, edge_index[b], edge_weight[b])
-                output[b, :, l, :] =  x_slice + x[b, :, l, :]
-
+        
+        # Apply GCN
+        gcn_output = self.gcn(x, edge_index, edge_weight)
+        
+        # Combine GCN output with original x
+        output = gcn_output + x
+        
         return output
 
-       
+
+    
+
         
 
 
