@@ -6,6 +6,7 @@ from scipy.spatial.distance import cdist
 from scipy.linalg import cholesky
 import os
 from sklearn.preprocessing import StandardScaler
+from tsl.datasets import AirQuality
 
 
 
@@ -162,10 +163,26 @@ class SoilMoisture():
 
 
 
+class AQ36():
+    def __init__(self):
+        self.y, self.eval_mask, self.space_coords, self.time_coords = self.load()
+        self.mask = np.where(~np.isnan(self.y), 1, 0)
+
+        self.y[self.mask == 0] = 0
+        self.x = None
+    
+    def load(self):
+        data = AirQuality(impute_nans=False, small=True)
+        df, dist, eval_mask = data.load_raw()
+        y = df.values.T
+        
+        space_coords = np.random.rand(y.shape[0], 2)
+        time_coords = np.arange(0,y.shape[1])
+        eval_mask = eval_mask.values.T.astype(int)
+        return y, eval_mask, space_coords, time_coords
 
 
-
-
+   
     
 
 if __name__ == "__main__":

@@ -3,18 +3,18 @@ import pandas as pd
 import torch
 import pytorch_lightning as pl
 from torch.utils.data import random_split
-from data import GP, KaustCompetition, SoilMoisture
+from data import GP, KaustCompetition, SoilMoisture, AQ36
 import argparse
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-from model import DNN, DCN, GraphTransformer
+from model import DNN, DCN, GraphTransformer, Transformer
 from utils import interpolate_missing_values, create_dnn_dataset, create_graph_transformer_dataset, DataModule, GraphTransformerDataModule
 import yaml
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='graph_transformer/soil_moisture.yaml')
+    parser.add_argument("--config", type=str, default='transformer/air_quality.yaml')
     args = parser.parse_args()
     config_file = './experiment/' + args.config
     with open(config_file, 'r') as fp:
@@ -32,6 +32,8 @@ def main(args):
         st_dataset = KaustCompetition(args.dataset_index)
     elif args.dataset == 'SoilMoisture':
         st_dataset = SoilMoisture()
+    elif args.dataset == 'AirQuality':
+        st_dataset = AQ36()
 
 
 
@@ -55,7 +57,14 @@ def main(args):
     elif args.model == 'GraphTransformer':
         dataset = create_graph_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio)
         dm = GraphTransformerDataModule(dataset, batch_size=args.batch_size)
-        model = GraphTransformer(y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay)
+        model = GraphTransformer(y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
+    
+    elif args.model == 'Transformer':
+        dataset = create_graph_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio)
+        dm = GraphTransformerDataModule(dataset, batch_size=args.batch_size)
+        model = Transformer(input_size=args.input_size, hidden_size=args.hidden_size, output_size=args.output_size, ff_size=args.ff_size, u_size=args.u_size, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, condition_on_u=args.condition_on_u, axis=args.axis, activation=args.activation)
+                
+    
 
     # Set up the TensorBoard logger
     logger = TensorBoardLogger("tb_logs", name="my_model")
@@ -84,7 +93,9 @@ def main(args):
     elif args.model == 'DCN':
         model = DCN.load_from_checkpoint(best_model_path, input_dim=args.input_dim, cross_num=args.cross_num, dnn_hidden_units=args.dnn_hidden_units, dnn_dropout=args.dnn_dropout, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
     elif args.model == 'GraphTransformer':
-        model = GraphTransformer.load_from_checkpoint(best_model_path, y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay)
+        model = GraphTransformer.load_from_checkpoint(best_model_path, y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
+    elif args.model == 'Transformer':
+        model = Transformer.load_from_checkpoint(best_model_path, input_size=args.input_size, hidden_size=args.hidden_size, output_size=args.output_size, ff_size=args.ff_size, u_size=args.u_size, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, condition_on_u=args.condition_on_u, axis=args.axis, activation=args.activation)
 
     # Test the model
     trainer.test(model, dm.test_dataloader())

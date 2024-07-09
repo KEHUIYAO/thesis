@@ -9,11 +9,16 @@ from scipy.spatial import distance_matrix
 from torch_geometric.loader import NeighborLoader
 from torch_geometric.loader import ClusterData, ClusterLoader
 import random
+import math
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LambdaLR
 
 class GraphTransformerDataset():
     def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio):
         self.y = y.astype(np.float32)
+        self.y, self.mean, self.std = self.normalize(self.y, mask, axis='time')
         self.x = x.astype(np.float32) if x is not None else None
+        self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords)
         self.mask = mask.astype(np.float32)
         self.eval_mask = eval_mask.astype(np.float32)
         self.space_coords = space_coords
@@ -27,8 +32,6 @@ class GraphTransformerDataset():
 
         observed_mask = mask - eval_mask
         self.val_mask = observed_mask * (np.random.rand(*mask.shape) < val_ratio).astype(np.float32)
-
-
         self.load()
 
     
@@ -43,9 +46,76 @@ class GraphTransformerDataset():
         batch['mask'] = self.mask_batch[idx].astype(np.float32)
         batch['eval_mask'] = self.eval_mask_batch[idx].astype(np.float32)
         batch['val_mask'] = self.val_mask_batch[idx].astype(np.float32)
-        batch['edge_index'] = self.edge_index_batch[idx]
-        batch['edge_weight'] = self.edge_weight_batch[idx]
+        batch['adj'] = self.adj_batch[idx]
+        batch['space_time_covariate'] = self.space_time_covariate_batch[idx].astype(np.float32)
+        batch['mean'] = self.mean_batch[idx].astype(np.float32)
+        batch['std'] = self.std_batch[idx].astype(np.float32)
         return batch
+    
+
+
+    def normalize(self, y, mask, axis):
+        if axis == 'space':
+            axis_index = 0
+        elif axis == 'time':
+            axis_index = 1
+        elif axis == 'both':
+            # Flatten the array for normalization across all values
+            y_flat = y.flatten()
+            mask_flat = mask.flatten()
+            
+            sum_y = np.sum(y_flat * mask_flat)
+            count_y = np.sum(mask_flat)
+            mean = sum_y / count_y
+            
+            sum_sq_diff = np.sum(((y_flat - mean) * mask_flat)**2)
+            std = np.sqrt(sum_sq_diff / count_y)
+            
+            if std == 0:
+                std = 1e-4
+            
+            normalized_y = (y_flat - mean) / std
+            normalized_y[~mask_flat] = 0
+            
+            mean_repeated = np.full(y.shape, mean)
+            std_repeated = np.full(y.shape, std)
+            
+            return normalized_y.reshape(y.shape), mean_repeated, std_repeated
+        else:
+            raise ValueError("axis must be 'space', 'time', or 'both'")
+        
+        # Compute the mean using sum and mask
+        sum_y = np.sum(y * mask, axis=axis_index)
+        count_y = np.sum(mask, axis=axis_index)
+        mean = sum_y / count_y
+        
+        # Reshape mean for broadcasting
+        mean = np.expand_dims(mean, axis=axis_index)
+        
+        # Compute the standard deviation using sum and mask
+        sum_sq_diff = np.sum(((y - mean) * mask)**2, axis=axis_index)
+        std = np.sqrt(sum_sq_diff / count_y)
+        
+        # Avoid division by zero by setting zero std to 1e-4
+        std[std == 0] = 1e-4
+        
+        # Reshape std for broadcasting
+        std = np.expand_dims(std, axis=axis_index)
+        
+        # Normalize the array along the specified axis
+        normalized_y = (y - mean) / std
+        
+        # Maintain the mask in the normalized array
+        normalized_y[~mask] = 0
+        
+        # Repeat mean and std to match the shape of y
+        mean_repeated = np.repeat(mean, y.shape[axis_index], axis=axis_index)
+        std_repeated = np.repeat(std, y.shape[axis_index], axis=axis_index)
+        
+        # Return normalized array and normalization constants
+        return normalized_y, mean_repeated, std_repeated
+
+
     
     def create_graph(self, space_coords, sigma, epsilon):
         # Compute the pairwise distance matrix
@@ -73,6 +143,18 @@ class GraphTransformerDataset():
         data = Data(x=node_indices, edge_index=edge_index, edge_attr=edge_weights)
         
         return data
+    
+
+    def add_additional_space_time_covariate(self, space_coords, time_coords):
+        K = len(space_coords)
+        L = len(time_coords)
+        spatial_covariate = np.tile(space_coords[:, np.newaxis, :], (1, L, 1))
+        time_covariate = np.tile(time_coords, (K, 1)).reshape(K, L, 1)
+        space_time_covariate = np.concatenate([spatial_covariate, time_covariate], axis=-1)
+        return space_time_covariate
+
+
+
     
     def split_into_temporal_batches(self, L, window_size, stride):
         """
@@ -107,61 +189,77 @@ class GraphTransformerDataset():
 
         # partition space
         graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
-        cluster_data = ClusterData(graph_data, num_parts=self.space_partitions_num)  
-        # 1. Create subgraphs.
-        train_loader = ClusterLoader(cluster_data, batch_size=1, shuffle=True)  # 2. Stochastic partioning scheme.
 
+        if self.space_partitions_num > 1:
+        
+            cluster_data = ClusterData(graph_data, num_parts=self.space_partitions_num)  
+            # 1. Create subgraphs.
+            train_loader = ClusterLoader(cluster_data, batch_size=1, shuffle=True)  # 2. Stochastic partioning scheme.
+
+        else:
+            train_loader = iter([graph_data])
 
         y_partitions = []
         if self.x is not None:
             x_partitions = []
+        space_time_covariate_partitions = []
         mask_partitions = []
         eval_mask_partitions = []
         val_mask_partitions = []
         edge_index_partitions = []
         edge_weight_partitions = []
+        mean_partitions = []
+        std_partitions = []
 
         for step, sub_data in enumerate(train_loader):
             y_partitions.append(self.y[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             if self.x is not None:
                 x_partitions.append(self.x[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
+            space_time_covariate_partitions.append(self.space_time_covariate[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
             mask_partitions.append(self.mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             eval_mask_partitions.append(self.eval_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             val_mask_partitions.append(self.val_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             edge_index_partitions.append(sub_data.edge_index)
             edge_weight_partitions.append(sub_data.edge_attr)
+            mean_partitions.append(self.mean[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
+            std_partitions.append(self.std[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
 
         self.y_partitions = y_partitions
         if self.x is not None:
             self.x_partitions = x_partitions
+    
+        
+        self.space_time_covariate_partitions = space_time_covariate_partitions
         self.mask_partitions = mask_partitions
         self.eval_mask_partitions = eval_mask_partitions
         self.val_mask_partitions = val_mask_partitions
         self.edge_index_partitions = edge_index_partitions
         self.edge_weight_partitions = edge_weight_partitions
+        self.mean_partitions = mean_partitions
+        self.std_partitions = std_partitions
 
         max_y_len = max([len(y) for y in y_partitions])
-        max_edge_index_len = max([ei.size(1) for ei in edge_index_partitions])
-        max_edge_weight_len = max([ew.size(0) for ew in edge_weight_partitions])
 
         # Pad each partition to the maximum size while preserving structure
         y_padded = [np.pad(y, ((0, max_y_len - len(y)), (0, 0)), 'constant', constant_values=0) for y in y_partitions]        
         if self.x is not None:
             x_padded = [np.pad(x, ((0, max_y_len - x.shape[0]), (0, 0), (0, 0)), 'constant', constant_values=0) for x in x_partitions]
+        space_time_covariate_padded = [np.pad(stc, ((0, max_y_len - stc.shape[0]), (0, 0), (0, 0)), 'constant', constant_values=0) for stc in space_time_covariate_partitions]
         mask_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mask_partitions]
         eval_mask_padded = [np.pad(em, ((0, max_y_len - em.shape[0]), (0, 0)), 'constant', constant_values=0) for em in eval_mask_partitions]
         val_mask_padded = [np.pad(vm, ((0, max_y_len - vm.shape[0]), (0, 0)), 'constant', constant_values=0) for vm in val_mask_partitions]
-        edge_index_padded = [np.pad(ei.numpy(), ((0, 0), (0, max_edge_index_len - ei.size(1))), 'constant', constant_values=0) for ei in edge_index_partitions]
-        edge_weight_padded = [np.pad(ew.numpy(), (0, max_edge_weight_len - ew.size(0)), 'constant', constant_values=0) for ew in edge_weight_partitions]
+        mean_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mean_partitions]
+        std_padded = [np.pad(s, ((0, max_y_len - s.shape[0]), (0, 0)), 'constant', constant_values=1) for s in std_partitions]
 
         self.y_padded = y_padded
         if self.x is not None:
             self.x_padded = x_padded
+        self.space_time_covariate_padded = space_time_covariate_padded
         self.mask_padded = mask_padded
         self.eval_mask_padded = eval_mask_padded
         self.val_mask_padded = val_mask_padded
-        self.edge_index_padded = edge_index_padded
-        self.edge_weight_padded = edge_weight_padded
+        self.mean_padded = mean_padded
+        self.std_padded = std_padded
 
         # partition time
         time_partitions = self.split_into_temporal_batches(
@@ -177,20 +275,49 @@ class GraphTransformerDataset():
         y_batch = [i[:, j] for j in time_partitions for i in y_padded]
         if self.x is not None:
             x_batch = [i[:, j, :] for j in time_partitions for i in x_padded]
+        space_time_covariate_batch = [i[:, j, :] for j in time_partitions for i in space_time_covariate_padded]
         mask_batch = [i[:, j] for j in time_partitions for i in mask_padded]
         eval_mask_batch = [i[:, j] for j in time_partitions for i in eval_mask_padded]
         val_mask_batch = [i[:, j] for j in time_partitions for i in val_mask_padded]
-        edge_index_batch = [i for _ in time_partitions for i in edge_index_padded]
-        edge_weight_batch = [i for _ in time_partitions for i in edge_weight_padded]
+        mean_batch = [i[:, j] for j in time_partitions for i in mean_padded]
+        std_batch = [i[:, j] for j in time_partitions for i in std_padded]
+
+        adj_batch = []
+        for i in range(self.space_partitions_num):
+            adj = self.edge_index_to_adj(self.edge_index_partitions[i], self.edge_weight_partitions[i], max_y_len)
+                    
+            deg = torch.sum(adj, dim=-1)  # (B, K)
+            deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
+            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+            deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
+        
+            adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
+            adj_batch.append(adj)
+        
+        self.adj_batch = [i for _ in time_partitions for i in adj_batch]
+    
 
         self.y_batch = y_batch
         if self.x is not None:
             self.x_batch = x_batch
+        self.space_time_covariate_batch = space_time_covariate_batch
         self.mask_batch = mask_batch
         self.eval_mask_batch = eval_mask_batch
         self.val_mask_batch = val_mask_batch
-        self.edge_index_batch = edge_index_batch
-        self.edge_weight_batch = edge_weight_batch
+        self.mean_batch = mean_batch
+        self.std_batch = std_batch
+
+
+        
+            
+
+    def edge_index_to_adj(self, edge_index, edge_weight, num_nodes):
+        # edge_index: (2, E)
+        # edge_weight: (E)
+        # num_nodes: K
+        adj = torch.zeros((num_nodes, num_nodes))
+        adj[edge_index[0], edge_index[1]] = edge_weight
+        return adj
 
 
 class GraphTransformerDataModule(pl.LightningDataModule):
@@ -427,3 +554,50 @@ def create_graph_transformer_dataset(st_dataset, space_sigma, space_threshold, s
 
 
 
+
+class CosineSchedulerWithRestarts(LambdaLR):
+
+    def __init__(self, optimizer: Optimizer,
+                 num_warmup_steps: int,
+                 num_training_steps: int,
+                 min_factor: float = 0.1,
+                 linear_decay: float = 0.67,
+                 num_cycles: int = 1,
+                 last_epoch: int = -1):
+        """From https://github.com/huggingface/transformers/blob/v4.18.0/src/transformers/optimization.py#L138
+
+        Create a schedule with a learning rate that decreases following the values
+        of the cosine function between the initial lr set in the optimizer to 0,
+        with several hard restarts, after a warmup period during which it increases
+        linearly between 0 and the initial lr set in the optimizer.
+
+        Args:
+            optimizer ([`~torch.optim.Optimizer`]):
+                The optimizer for which to schedule the learning rate.
+            num_warmup_steps (`int`):
+                The number of steps for the warmup phase.
+            num_training_steps (`int`):
+                The total number of training steps.
+            num_cycles (`int`, *optional*, defaults to 1):
+                The number of hard restarts to use.
+            last_epoch (`int`, *optional*, defaults to -1):
+                The index of the last epoch when resuming training.
+        Return:
+            `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        """
+
+        def lr_lambda(current_step):
+            if current_step < num_warmup_steps:
+                factor = float(current_step) / float(max(1, num_warmup_steps))
+                return max(min_factor, factor)
+            progress = float(current_step - num_warmup_steps)
+            progress /= float(max(1, num_training_steps - num_warmup_steps))
+            if progress >= 1.0:
+                return 0.0
+            factor = (float(num_cycles) * progress) % 1.0
+            cos = 0.5 * (1.0 + math.cos(math.pi * factor))
+            lin = 1.0 - (progress * linear_decay)
+            return max(min_factor, cos * lin)
+
+        super(CosineSchedulerWithRestarts, self).__init__(optimizer, lr_lambda,
+                                                          last_epoch)
