@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 from torch_geometric.nn import GCN
 import torch.nn.functional as F
 from torchvision.ops.misc import MLP
+from utils import CosineSchedulerWithRestarts
 
 class GraphConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -15,17 +16,10 @@ class GraphConvLayer(nn.Module):
         # adj: (B, K, K)
         B, K, L, D = x.size()
         
-        # Degree matrix
-        deg = torch.sum(adj, dim=-1)  # (B, K)
-        deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
-        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-        
-        # Normalized adjacency matrix
-        norm = deg_inv_sqrt * adj * deg_inv_sqrt.transpose(-1, -2)  # (B, K, K)
         
         # Matrix multiplication over all temporal slices at once
         x = x.permute(0, 2, 1, 3)  # (B, L, K, D)
-        x = torch.einsum('bkk,blkd->blkd', norm, x)  # (B, L, K, D)
+        x = torch.einsum('bkk,blkd->blkd', adj, x)  # (B, L, K, D)
         x = x.permute(0, 2, 1, 3)  # (B, K, L, D)
         
         # Apply linear layer
@@ -42,25 +36,13 @@ class GCN(nn.Module):
         self.conv2 = GraphConvLayer(hidden_channels, out_channels)
         self.layer_norm2 = nn.LayerNorm(out_channels)
 
-    def edge_index_to_adj(self, edge_index, edge_weight, num_nodes):
-        # edge_index: (2, E)
-        # edge_weight: (E)
-        # num_nodes: K
-        adj = torch.zeros((num_nodes, num_nodes), device=edge_index.device)
-        adj[edge_index[0], edge_index[1]] = edge_weight
-        return adj
 
-    def forward(self, x, edge_index, edge_weight):
+    def forward(self, x, adj):
         # x: (B, K, L, D)
-        # edge_index: (B, 2, E)
-        # edge_weight: (B, E)
+        # adj: (B, K, K)
         B, K, L, D = x.size()
         
         # Create the adjacency matrix for each batch element
-        adj = torch.zeros((B, K, K), device=x.device)
-        for b in range(B):
-            adj[b] = self.edge_index_to_adj(edge_index[b], edge_weight[b], K)
-        
         x = self.conv1(x, adj)
         x = self.layer_norm1(x)
         x = self.relu(x)
@@ -71,7 +53,7 @@ class GCN(nn.Module):
 
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
+    def __init__(self, d_model, dropout=0.0, max_len=5000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -92,13 +74,12 @@ class PositionalEncoding(nn.Module):
 class GraphTransformerEncodingLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout):
         super().__init__()
-        self.transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True)
+        self.transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
         self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model)
 
-    def forward(self, x, edge_index, edge_weight):
+    def forward(self, x, adj):
         # x: (B, K, L, D)
-        # edge_index: (B, 2, E)
-        # edge_weight: (B, E)
+        # adj: (B, K, K)
         B, K, L, D = x.size()
         
         # Apply Transformer Encoder
@@ -107,12 +88,9 @@ class GraphTransformerEncodingLayer(nn.Module):
         x = x.view(B, K, L, D)
         
         # Apply GCN
-        gcn_output = self.gcn(x, edge_index, edge_weight)
+        x = self.gcn(x, adj)
         
-        # Combine GCN output with original x
-        output = gcn_output + x
-        
-        return output
+        return x
 
 
     
@@ -131,17 +109,23 @@ class GraphTransformer(pl.LightningModule):
                  n_layers,
                  dropout,
                  lr=1e-3,
-                 weight_decay=0.0
+                 weight_decay=0.0,
+                 whiten_prob=[0.2]
                  ):
         super().__init__()
         self.x_dim = x_dim
         self.hidden_dims = hidden_dims
         self.lr = lr
         self.weight_decay = weight_decay
+        self.whiten_prob = whiten_prob
        
         self.y_enc = MLP(y_dim, hidden_dims, dropout=dropout)
+        self.layer_norm_y = nn.LayerNorm(hidden_dims[-1])
+
         if x_dim > 0:
             self.x_enc = MLP(x_dim, hidden_dims, dropout=dropout)
+            self.readin = MLP(hidden_dims[-1]+hidden_dims[-1], hidden_dims, dropout=dropout)
+            self.layer_norm_x = nn.LayerNorm(hidden_dims[-1])
 
         self.mask_token = nn.Parameter(torch.randn(hidden_dims[-1]))  # Learnable mask token
         self.pe = PositionalEncoding(hidden_dims[-1], dropout=dropout)
@@ -153,11 +137,10 @@ class GraphTransformer(pl.LightningModule):
         self.readout = MLP(hidden_dims[-1], hidden_dims + [output_dim], dropout=dropout)
                                     
             
-    def forward(self, y, mask, edge_index, edge_weight, x):
+    def forward(self, y, mask, adj, x):
         # y: (B, K, L)
         # mask: (B, K, L)
-        # edge_index: (B, 2, E)
-        # edge_weight: (B, E)
+        # adj: (B, K, K)
         # x: (B, K, L, C)
 
         B, K, L = y.shape
@@ -166,18 +149,22 @@ class GraphTransformer(pl.LightningModule):
 
         h_y = self.y_enc(y)  # (B, K, L, hidden_dims[-1])
         h_y = mask.unsqueeze(-1) * h_y + (1 - mask).unsqueeze(-1) * self.mask_token  # (B, K, L, hidden_dims[-1])
+        # h_y = mask.unsqueeze(-1) * h_y
+        # h_y = self.layer_norm_y(h_y)
 
 
         if self.x_dim > 0:
             h_x = self.x_enc(x)  # (B, K, L, hidden_dims[-1])
-            h = h_y + h_x  # (B, K, L, hidden_dims[-1])
+            h_x = self.layer_norm_x(h_x)
+            h = torch.cat([h_y, h_x], dim=-1)  # (B, K, L, 2 * hidden_dims[-1])
+            h = self.readin(h)
         else:
             h = h_y
 
         h = self.pe(h)  # (B, K, L, hidden_dims[-1])
 
         for layer in self.encoder_layers:
-            h = layer(h, edge_index, edge_weight)
+            h = layer(h, adj)
 
         # Pass through the readout MLP
         x_hat = self.readout(h)  # (B, K, L, output_dim)
@@ -189,8 +176,9 @@ class GraphTransformer(pl.LightningModule):
         val_mask = batch['val_mask']
         eval_mask = batch['eval_mask']
         observed_mask = mask - eval_mask - val_mask
-        p = torch.tensor([0.2, 0.5, 0.8])
+        p = torch.tensor(self.whiten_prob)
         p_size = [mask.size(0)] + [1] * (mask.ndim - 1)
+
         p = p[torch.randint(len(p), p_size)].to(device=mask.device)
 
         whiten_mask = torch.rand(mask.size(), device=mask.device) < p
@@ -213,20 +201,60 @@ class GraphTransformer(pl.LightningModule):
 
         y_observed = y * training_mask
         y_target = y * target_mask
-        edge_index = batch['edge_index']
-        edge_weight = batch['edge_weight']
+        adj = batch['adj']
 
         if self.x_dim > 0:
             x = batch['x']
         else:
             x = None
 
-        y_hat = self(y_observed,training_mask, edge_index, edge_weight, x)
+        y_hat = self(y_observed,training_mask, adj, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * target_mask
+        # loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
+        
+        mean = batch['mean']
+        std = batch['std']
+        y_hat = y_hat * std + mean
+        y_target = y_target * std + mean
         loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
         self.log('train_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
+
+    # def training_step(self, batch, batch_idx):
+    #     y = batch['y']
+    #     mask = batch['mask']
+    #     val_mask = batch['val_mask']
+
+    #     # Check if val_mask.sum() == 0 and skip the batch if true
+    #     if val_mask.sum() == 0:
+    #         return None
+
+
+    #     eval_mask = batch['eval_mask']
+    #     observed_mask = mask - eval_mask - val_mask
+    #     y_observed = y * observed_mask
+    #     y_target = y * val_mask
+
+    #     adj = batch['adj']
+        
+    #     if self.x_dim > 0:
+    #         x = batch['x']
+    #     else:
+    #         x = None
+
+    #     y_hat = self(y_observed, observed_mask, adj, x)
+    #     y_hat = y_hat.squeeze(-1)
+    #     y_hat = y_hat * val_mask
+    #     loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
+
+    #     mean = batch['mean']
+    #     std = batch['std']
+    #     y_hat = y_hat * std + mean
+    #     y_target = y_target * std + mean
+    #     train_loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
+    #     self.log('train_loss', train_loss, on_epoch=True, on_step=False, prog_bar=True)
+    #     return loss
     
     
     
@@ -245,18 +273,25 @@ class GraphTransformer(pl.LightningModule):
         y_observed = y * observed_mask
         y_target = y * val_mask
 
-        edge_index = batch['edge_index']
-        edge_weight = batch['edge_weight']
+        adj = batch['adj']
         
         if self.x_dim > 0:
             x = batch['x']
         else:
             x = None
 
-        y_hat = self(y_observed, observed_mask, edge_index, edge_weight, x)
+        y_hat = self(y_observed, observed_mask, adj, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * val_mask
+        # loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
+
+        mean = batch['mean']
+        std = batch['std']
+        y_hat = y_hat * std + mean
+        y_target = y_target * std + mean
         loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
+
+
         self.log('val_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
     
@@ -273,8 +308,8 @@ class GraphTransformer(pl.LightningModule):
         observed_mask = mask - eval_mask
         y_observed = y * observed_mask
         y_target = y * eval_mask
-        edge_index = batch['edge_index']
-        edge_weight = batch['edge_weight']
+
+        adj = batch['adj']
         
         if self.x_dim > 0:
             x = batch['x']
@@ -282,11 +317,18 @@ class GraphTransformer(pl.LightningModule):
             x = None
 
 
-        y_hat = self(y_observed, observed_mask, edge_index, edge_weight, x)
+        y_hat = self(y_observed, observed_mask, adj, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * eval_mask
         
+        # loss = torch.abs(y_hat - y_target).sum() / eval_mask.sum()
+
+        mean = batch['mean']
+        std = batch['std']
+        y_hat = y_hat * std + mean
+        y_target = y_target * std + mean
         loss = torch.abs(y_hat - y_target).sum() / eval_mask.sum()
+
         self.log('test_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
         
@@ -299,36 +341,17 @@ class GraphTransformer(pl.LightningModule):
         #     'frequency': 1
         # }
 
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 250], gamma=0.1)
+        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10, 50], gamma=0.1)
 
+        
+        scheduler = CosineSchedulerWithRestarts(
+            optimizer,
+            num_warmup_steps=12,
+            min_factor=0.1,
+            linear_decay=0.67,
+            num_training_steps=300,
+            num_cycles=300 // 100
+        )
 
         return [optimizer], [scheduler]
 
-
-if __name__ == '__main__':
-    # Define model parameters
-    y_dim = 1
-    x_dim = 20
-    hidden_dims = [128, 128]
-    output_dim = 1
-    ff_dim = 128
-    n_heads = 1
-    n_layers = 4
-    dropout = 0.0
-
-    # Create a model instance
-    model = GraphTransformer(y_dim, x_dim, hidden_dims, output_dim, ff_dim, n_heads, n_layers, dropout)
-
-    # Generate dummy data
-    B, K, L, C = 16, 36, 72, x_dim
-    y = torch.randn(B, K, L)
-    mask = torch.ones(B, K, L)
-    edge_index = torch.randint(0, K, (B, 2, 20))
-    edge_weight = torch.randn(B, 20)
-    x = torch.randn(B, K, L, C)
-
-    # Forward pass
-    output = model(y, mask, edge_index, edge_weight, x)
-
-    # Print the output shape
-    print("Output shape:", output.shape)
