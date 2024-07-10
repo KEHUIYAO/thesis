@@ -87,8 +87,8 @@ class GraphTransformerEncodingLayer(nn.Module):
         x = self.transformer_encoder_layer(x)
         x = x.view(B, K, L, D)
         
-        # Apply GCN
-        x = self.gcn(x, adj)
+        # # Apply GCN
+        # x = self.gcn(x, adj)
         
         return x
 
@@ -149,13 +149,13 @@ class GraphTransformer(pl.LightningModule):
 
         h_y = self.y_enc(y)  # (B, K, L, hidden_dims[-1])
         h_y = mask.unsqueeze(-1) * h_y + (1 - mask).unsqueeze(-1) * self.mask_token  # (B, K, L, hidden_dims[-1])
-        # h_y = mask.unsqueeze(-1) * h_y
+        h_y = mask.unsqueeze(-1) * h_y
         # h_y = self.layer_norm_y(h_y)
 
 
         if self.x_dim > 0:
             h_x = self.x_enc(x)  # (B, K, L, hidden_dims[-1])
-            h_x = self.layer_norm_x(h_x)
+            # h_x = self.layer_norm_x(h_x)
             h = torch.cat([h_y, h_x], dim=-1)  # (B, K, L, 2 * hidden_dims[-1])
             h = self.readin(h)
         else:
@@ -350,7 +350,7 @@ class GraphTransformer(pl.LightningModule):
             min_factor=0.1,
             linear_decay=0.67,
             num_training_steps=300,
-            num_cycles=300 // 100
+            num_cycles=3
         )
 
         return [optimizer], [scheduler]

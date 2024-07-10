@@ -13,10 +13,91 @@ import math
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
+def interpolate_missing_values(y_st, y_st_missing, mask_st):
+    num_nodes, seq_len = y_st.shape
+    for k in range(num_nodes):
+        for l in range(seq_len):
+            y_st_missing[k, :] = pd.Series(y_st_missing[k, :]).interpolate(method='linear', limit_direction='both').values
+    y_st_missing[np.isnan(y_st_missing)] = np.nanmean(y_st_missing)
+
+    return y_st_missing
+
+def generate_space_basis_functions(space_coords):
+    num_nodes = space_coords.shape[0]
+
+    # spatial basis functions
+    # num_basis = [10**2, 19**2, 37**2]
+    num_basis = [25, 81, 121]
+    knots_1d = [np.linspace(0,1,int(np.sqrt(i))) for i in num_basis]
+    # Wendland kernel
+    K = 0
+    space_basis = np.zeros((num_nodes, sum(num_basis)))
+    for res in range(len(num_basis)):
+        theta = 1/np.sqrt(num_basis[res])*2.5
+        knots_s1, knots_s2 = np.meshgrid(knots_1d[res],knots_1d[res])
+        knots = np.column_stack((knots_s1.flatten(),knots_s2.flatten()))
+        for i in range(num_basis[res]):
+            d = np.linalg.norm(space_coords-knots[i,:],axis=1)/theta
+            for j in range(len(d)):
+                if d[j] >= 0 and d[j] <= 1:
+                    space_basis[j,i + K] = (1-d[j])**6 * (35 * d[j]**2 + 18 * d[j] + 3)/3
+                else:
+                    space_basis[j,i + K] = 0
+        K = K + num_basis[res]
+    return space_basis
+
+# def generate_time_basis_functions(time_coords):
+#     seq_len = time_coords.shape[0]
+#     # time basis functions
+#     time_coords = time_coords.reshape(-1, 1)
+
+#     num_basis = [3, 7, 11]
+#     knots = [np.linspace(0,1,i) for i in num_basis]
+#     # Wendland kernel
+#     K = 0 # basis size
+#     time_basis = np.zeros((seq_len, sum(num_basis)))
+#     for res in range(len(num_basis)):
+#         theta = 1/num_basis[res]*2.5
+#         for i in range(num_basis[res]):
+#             d = np.absolute(time_coords-knots[res][i])/theta
+#             for j in range(len(d)):
+#                 if d[j] >= 0 and d[j] <= 1:
+#                     time_basis[j,i + K] = (1-d[j])**6 * (35 * d[j]**2 + 18 * d[j] + 3)/3
+#                 else:
+#                     time_basis[j,i + K] = 0
+#         K = K + num_basis[res]
+#     return time_basis
+
+def generate_time_basis_functions(time_coords):
+    seq_len = time_coords.shape[0]
+
+    ## time basis 
+    num_basis = [10, 20, 100]
+    # std_arr = [0.4, 0.2, 0.1]
+    std_arr = [0.3,0.15,0.05]
+    mu_knots = [np.linspace(0,1,int(i)) for i in num_basis]
+
+    time_basis = np.zeros((seq_len, sum(num_basis)))
+    K = 0
+    for res in range(len(num_basis)):
+        std = std_arr[res]
+        for i in range(num_basis[res]):
+            d = np.square(np.absolute(time_coords-mu_knots[res][i]))
+            for j in range(len(d)):
+                if d[j] >= 0 and d[j] <= 1:
+                    time_basis[j,i + K] = np.exp(-0.5 * d[j]/(std**2))
+                else:
+                    time_basis[j,i + K] = 0
+        K = K + num_basis[res]
+    return time_basis
+
+
+
 class GraphTransformerDataset():
     def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio):
         self.y = y.astype(np.float32)
-        self.y, self.mean, self.std = self.normalize(self.y, mask, axis='time')
+        observed_mask = mask - eval_mask
+        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis='both')
         self.x = x.astype(np.float32) if x is not None else None
         self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords)
         self.mask = mask.astype(np.float32)
@@ -42,12 +123,14 @@ class GraphTransformerDataset():
         batch = {}
         batch['y'] = self.y_batch[idx].astype(np.float32)
         if self.x is not None:
-            batch['x'] = self.x_batch[idx].astype(np.float32)
+            batch['x'] = np.concatenate(self.x_batch[idx].astype(np.float32), self.space_time_covariate_batch[idx].astype(np.float32), axis=-1)
+        else:
+            batch['x'] = self.space_time_covariate_batch[idx].astype(np.float32)
+
         batch['mask'] = self.mask_batch[idx].astype(np.float32)
         batch['eval_mask'] = self.eval_mask_batch[idx].astype(np.float32)
         batch['val_mask'] = self.val_mask_batch[idx].astype(np.float32)
         batch['adj'] = self.adj_batch[idx]
-        batch['space_time_covariate'] = self.space_time_covariate_batch[idx].astype(np.float32)
         batch['mean'] = self.mean_batch[idx].astype(np.float32)
         batch['std'] = self.std_batch[idx].astype(np.float32)
         return batch
@@ -148,10 +231,25 @@ class GraphTransformerDataset():
     def add_additional_space_time_covariate(self, space_coords, time_coords):
         K = len(space_coords)
         L = len(time_coords)
-        spatial_covariate = np.tile(space_coords[:, np.newaxis, :], (1, L, 1))
-        time_covariate = np.tile(time_coords, (K, 1)).reshape(K, L, 1)
+       
+        # scale space coordinates to [0, 1]
+        space_coords = (space_coords - space_coords.min(axis=0)) / (space_coords.max(axis=0) - space_coords.min(axis=0))
+
+        # scale time coordinates to [0, 1]
+        time_coords = (time_coords - time_coords.min()) / (time_coords.max() - time_coords.min())
+
+        
+        time_covariate = generate_time_basis_functions(time_coords)
+        spatial_covariate = generate_space_basis_functions(space_coords)
+
+        spatial_covariate = np.tile(spatial_covariate[:, np.newaxis, :], (1, L, 1))
+        time_covariate = np.tile(time_covariate[np.newaxis, :, :], (K, 1, 1))
         space_time_covariate = np.concatenate([spatial_covariate, time_covariate], axis=-1)
+
+        
+
         return space_time_covariate
+
 
 
 
@@ -371,83 +469,7 @@ class DataModule(pl.LightningDataModule):
 
 
 
-def interpolate_missing_values(y_st, y_st_missing, mask_st):
-    num_nodes, seq_len = y_st.shape
-    for k in range(num_nodes):
-        for l in range(seq_len):
-            y_st_missing[k, :] = pd.Series(y_st_missing[k, :]).interpolate(method='linear', limit_direction='both').values
-    y_st_missing[np.isnan(y_st_missing)] = np.nanmean(y_st_missing)
 
-    return y_st_missing
-
-def generate_space_basis_functions(space_coords):
-    num_nodes = space_coords.shape[0]
-
-    # spatial basis functions
-    # num_basis = [10**2, 19**2, 37**2]
-    num_basis = [25, 81, 121]
-    knots_1d = [np.linspace(0,1,int(np.sqrt(i))) for i in num_basis]
-    # Wendland kernel
-    K = 0
-    space_basis = np.zeros((num_nodes, sum(num_basis)))
-    for res in range(len(num_basis)):
-        theta = 1/np.sqrt(num_basis[res])*2.5
-        knots_s1, knots_s2 = np.meshgrid(knots_1d[res],knots_1d[res])
-        knots = np.column_stack((knots_s1.flatten(),knots_s2.flatten()))
-        for i in range(num_basis[res]):
-            d = np.linalg.norm(space_coords-knots[i,:],axis=1)/theta
-            for j in range(len(d)):
-                if d[j] >= 0 and d[j] <= 1:
-                    space_basis[j,i + K] = (1-d[j])**6 * (35 * d[j]**2 + 18 * d[j] + 3)/3
-                else:
-                    space_basis[j,i + K] = 0
-        K = K + num_basis[res]
-    return space_basis
-
-# def generate_time_basis_functions(time_coords):
-#     seq_len = time_coords.shape[0]
-#     # time basis functions
-#     time_coords = time_coords.reshape(-1, 1)
-
-#     num_basis = [3, 7, 11]
-#     knots = [np.linspace(0,1,i) for i in num_basis]
-#     # Wendland kernel
-#     K = 0 # basis size
-#     time_basis = np.zeros((seq_len, sum(num_basis)))
-#     for res in range(len(num_basis)):
-#         theta = 1/num_basis[res]*2.5
-#         for i in range(num_basis[res]):
-#             d = np.absolute(time_coords-knots[res][i])/theta
-#             for j in range(len(d)):
-#                 if d[j] >= 0 and d[j] <= 1:
-#                     time_basis[j,i + K] = (1-d[j])**6 * (35 * d[j]**2 + 18 * d[j] + 3)/3
-#                 else:
-#                     time_basis[j,i + K] = 0
-#         K = K + num_basis[res]
-#     return time_basis
-
-def generate_time_basis_functions(time_coords):
-    seq_len = time_coords.shape[0]
-
-    ## time basis 
-    num_basis = [10, 20, 100]
-    # std_arr = [0.4, 0.2, 0.1]
-    std_arr = [0.3,0.15,0.05]
-    mu_knots = [np.linspace(0,1,int(i)) for i in num_basis]
-
-    time_basis = np.zeros((seq_len, sum(num_basis)))
-    K = 0
-    for res in range(len(num_basis)):
-        std = std_arr[res]
-        for i in range(num_basis[res]):
-            d = np.square(np.absolute(time_coords-mu_knots[res][i]))
-            for j in range(len(d)):
-                if d[j] >= 0 and d[j] <= 1:
-                    time_basis[j,i + K] = np.exp(-0.5 * d[j]/(std**2))
-                else:
-                    time_basis[j,i + K] = 0
-        K = K + num_basis[res]
-    return time_basis
 
 
 

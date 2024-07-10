@@ -16,7 +16,7 @@ input_size: 1
 hidden_size: 64
 output_size: 1
 ff_size: 64 
-u_size: 0 
+u_size: 357 
 n_heads: 1 
 n_layers: 4
 dropout: 0.0
