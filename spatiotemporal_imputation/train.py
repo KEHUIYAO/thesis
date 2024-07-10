@@ -12,6 +12,7 @@ from utils import interpolate_missing_values, create_dnn_dataset, create_graph_t
 import yaml
 
 
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default='transformer/air_quality.yaml')
