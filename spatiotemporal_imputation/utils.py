@@ -123,7 +123,7 @@ class GraphTransformerDataset():
         batch = {}
         batch['y'] = self.y_batch[idx].astype(np.float32)
         if self.x is not None:
-            batch['x'] = np.concatenate(self.x_batch[idx].astype(np.float32), self.space_time_covariate_batch[idx].astype(np.float32), axis=-1)
+            batch['x'] = np.concatenate([self.x_batch[idx].astype(np.float32), self.space_time_covariate_batch[idx].astype(np.float32)], axis=-1)
         else:
             batch['x'] = self.space_time_covariate_batch[idx].astype(np.float32)
 
