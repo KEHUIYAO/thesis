@@ -6,16 +6,16 @@ from torch.utils.data import random_split
 from data import GP, KaustCompetition, SoilMoisture, AQ36
 import argparse
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
-from model import DNN, DCN, GraphTransformer, Transformer
-from utils import interpolate_missing_values, create_dnn_dataset, create_graph_transformer_dataset, DataModule, GraphTransformerDataModule
+from pytorch_lightning.callbacks import ModelCheckpoint, StochasticWeightAveraging
+from model import DNN, DCN, SpatialTemporalTransformer
+from utils import interpolate_missing_values, create_dnn_dataset, create_st_transformer_dataset, DataModule, SpatialTemporalTransformerDataModule
 import yaml
 
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='transformer/air_quality.yaml')
+    parser.add_argument("--config", type=str, default='st_transformer/air_quality_st_basis.yaml')
     args = parser.parse_args()
     config_file = './experiment/' + args.config
     with open(config_file, 'r') as fp:
@@ -55,16 +55,11 @@ def main(args):
         # model
         model = DCN(input_dim=args.input_dim, cross_num=args.cross_num, dnn_hidden_units=args.dnn_hidden_units, dnn_dropout=args.dnn_dropout, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
     
-    elif args.model == 'GraphTransformer':
-        dataset = create_graph_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio)
-        dm = GraphTransformerDataModule(dataset, batch_size=args.batch_size)
-        model = GraphTransformer(y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
-    
-    elif args.model == 'Transformer':
-        dataset = create_graph_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio)
-        dm = GraphTransformerDataModule(dataset, batch_size=args.batch_size)
-        model = Transformer(input_size=args.input_size, hidden_size=args.hidden_size, output_size=args.output_size, ff_size=args.ff_size, u_size=args.u_size, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, condition_on_u=args.condition_on_u, axis=args.axis, activation=args.activation)
-                
+    elif args.model == 'SpatialTemporalTransformer':
+        dataset = create_st_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio, args.additional_st_covariates)
+        dm = SpatialTemporalTransformerDataModule(dataset, batch_size=args.batch_size)
+        model = SpatialTemporalTransformer(y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
+  
     
 
     # Set up the TensorBoard logger
@@ -80,7 +75,11 @@ def main(args):
     )
 
     # Set up the trainer with the checkpoint callback
-    trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback])
+    if args.model == 'SpatialTemporalTransformer':
+        trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback, StochasticWeightAveraging(swa_lrs=1e-2)], reload_dataloaders_every_n_epochs=1, precision="16-mixed")
+    else:
+        trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback])
+
 
     # Train the model
     trainer.fit(model, dm)
@@ -93,11 +92,9 @@ def main(args):
         model = DNN.load_from_checkpoint(best_model_path, input_dim=args.input_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, dropout_rate=args.dropout_rate, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
     elif args.model == 'DCN':
         model = DCN.load_from_checkpoint(best_model_path, input_dim=args.input_dim, cross_num=args.cross_num, dnn_hidden_units=args.dnn_hidden_units, dnn_dropout=args.dnn_dropout, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
-    elif args.model == 'GraphTransformer':
-        model = GraphTransformer.load_from_checkpoint(best_model_path, y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
-    elif args.model == 'Transformer':
-        model = Transformer.load_from_checkpoint(best_model_path, input_size=args.input_size, hidden_size=args.hidden_size, output_size=args.output_size, ff_size=args.ff_size, u_size=args.u_size, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, condition_on_u=args.condition_on_u, axis=args.axis, activation=args.activation)
-
+    elif args.model == 'SpatialTemporalTransformer':
+        model = SpatialTemporalTransformer.load_from_checkpoint(best_model_path, y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
+   
     # Test the model
     trainer.test(model, dm.test_dataloader())
 

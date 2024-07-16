@@ -1,54 +1,9 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-from torch_geometric.nn import GCN
 import torch.nn.functional as F
 from torchvision.ops.misc import MLP
 from utils import CosineSchedulerWithRestarts
-
-class GraphConvLayer(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(GraphConvLayer, self).__init__()
-        self.linear = nn.Linear(in_channels, out_channels)
-
-    def forward(self, x, adj):
-        # x: (B, K, L, D)
-        # adj: (B, K, K)
-        B, K, L, D = x.size()
-        
-        
-        # Matrix multiplication over all temporal slices at once
-        x = x.permute(0, 2, 1, 3)  # (B, L, K, D)
-        x = torch.einsum('bkk,blkd->blkd', adj, x)  # (B, L, K, D)
-        x = x.permute(0, 2, 1, 3)  # (B, K, L, D)
-        
-        # Apply linear layer
-        out = self.linear(x)
-        
-        return out
-
-class GCN(nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
-        super(GCN, self).__init__()
-        self.conv1 = GraphConvLayer(in_channels, hidden_channels)
-        self.layer_norm1 = nn.LayerNorm(hidden_channels)
-        self.relu = nn.ReLU()
-        self.conv2 = GraphConvLayer(hidden_channels, out_channels)
-        self.layer_norm2 = nn.LayerNorm(out_channels)
-
-
-    def forward(self, x, adj):
-        # x: (B, K, L, D)
-        # adj: (B, K, K)
-        B, K, L, D = x.size()
-        
-        # Create the adjacency matrix for each batch element
-        x = self.conv1(x, adj)
-        x = self.layer_norm1(x)
-        x = self.relu(x)
-        x = self.conv2(x, adj)
-        x = self.layer_norm2(x)
-        return x
 
 
 
@@ -71,24 +26,28 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
     
 
-class GraphTransformerEncodingLayer(nn.Module):
+class SpatialTemporalTransformerLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout):
         super().__init__()
-        self.transformer_encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
-        self.gcn = GCN(in_channels=d_model, hidden_channels=d_model, out_channels=d_model)
+        self.temporal_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
+        self.spatial_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
 
-    def forward(self, x, adj):
+
+    def forward(self, x):
         # x: (B, K, L, D)
-        # adj: (B, K, K)
         B, K, L, D = x.size()
         
-        # Apply Transformer Encoder
-        x = x.view(B * K, L, D)
-        x = self.transformer_encoder_layer(x)
-        x = x.view(B, K, L, D)
+        # Apply temporal transformer layer
+        x = x.reshape(B * K, L, D)
+        x = self.temporal_transformer_layer(x)
+        x = x.reshape(B, K, L, D)
         
-        # # Apply GCN
-        # x = self.gcn(x, adj)
+        # Apply spatial transformer layer
+        x = x.permute(0, 2, 1, 3)
+        x = x.reshape(B*L, K, D)
+        x = self.spatial_transformer_layer(x)
+        x = x.reshape(B, L, K, D)
+        x = x.permute(0, 2, 1, 3)
         
         return x
 
@@ -98,7 +57,7 @@ class GraphTransformerEncodingLayer(nn.Module):
         
 
 
-class GraphTransformer(pl.LightningModule):
+class SpatialTemporalTransformer(pl.LightningModule):
     def __init__(self,
                  y_dim,
                  x_dim,
@@ -110,7 +69,7 @@ class GraphTransformer(pl.LightningModule):
                  dropout,
                  lr=1e-3,
                  weight_decay=0.0,
-                 whiten_prob=[0.2]
+                 whiten_prob=[0.2, 0.5, 0.8]
                  ):
         super().__init__()
         self.x_dim = x_dim
@@ -131,16 +90,15 @@ class GraphTransformer(pl.LightningModule):
         self.pe = PositionalEncoding(hidden_dims[-1], dropout=dropout)
 
         self.encoder_layers = nn.ModuleList([
-            GraphTransformerEncodingLayer(d_model=hidden_dims[-1], nhead=n_heads, dim_feedforward=ff_dim, dropout=dropout)
+            SpatialTemporalTransformerLayer(d_model=hidden_dims[-1], nhead=n_heads, dim_feedforward=ff_dim, dropout=dropout)
             for _ in range(n_layers)
         ])
         self.readout = MLP(hidden_dims[-1], hidden_dims + [output_dim], dropout=dropout)
                                     
             
-    def forward(self, y, mask, adj, x):
+    def forward(self, y, mask, x):
         # y: (B, K, L)
         # mask: (B, K, L)
-        # adj: (B, K, K)
         # x: (B, K, L, C)
 
         B, K, L = y.shape
@@ -164,7 +122,7 @@ class GraphTransformer(pl.LightningModule):
         h = self.pe(h)  # (B, K, L, hidden_dims[-1])
 
         for layer in self.encoder_layers:
-            h = layer(h, adj)
+            h = layer(h)
 
         # Pass through the readout MLP
         x_hat = self.readout(h)  # (B, K, L, output_dim)
@@ -201,14 +159,14 @@ class GraphTransformer(pl.LightningModule):
 
         y_observed = y * training_mask
         y_target = y * target_mask
-        adj = batch['adj']
+        
 
         if self.x_dim > 0:
             x = batch['x']
         else:
             x = None
 
-        y_hat = self(y_observed,training_mask, adj, x)
+        y_hat = self(y_observed,training_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * target_mask
         # loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
@@ -221,40 +179,6 @@ class GraphTransformer(pl.LightningModule):
         self.log('train_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
         return loss
 
-    # def training_step(self, batch, batch_idx):
-    #     y = batch['y']
-    #     mask = batch['mask']
-    #     val_mask = batch['val_mask']
-
-    #     # Check if val_mask.sum() == 0 and skip the batch if true
-    #     if val_mask.sum() == 0:
-    #         return None
-
-
-    #     eval_mask = batch['eval_mask']
-    #     observed_mask = mask - eval_mask - val_mask
-    #     y_observed = y * observed_mask
-    #     y_target = y * val_mask
-
-    #     adj = batch['adj']
-        
-    #     if self.x_dim > 0:
-    #         x = batch['x']
-    #     else:
-    #         x = None
-
-    #     y_hat = self(y_observed, observed_mask, adj, x)
-    #     y_hat = y_hat.squeeze(-1)
-    #     y_hat = y_hat * val_mask
-    #     loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
-
-    #     mean = batch['mean']
-    #     std = batch['std']
-    #     y_hat = y_hat * std + mean
-    #     y_target = y_target * std + mean
-    #     train_loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
-    #     self.log('train_loss', train_loss, on_epoch=True, on_step=False, prog_bar=True)
-    #     return loss
     
     
     
@@ -273,14 +197,13 @@ class GraphTransformer(pl.LightningModule):
         y_observed = y * observed_mask
         y_target = y * val_mask
 
-        adj = batch['adj']
         
         if self.x_dim > 0:
             x = batch['x']
         else:
             x = None
 
-        y_hat = self(y_observed, observed_mask, adj, x)
+        y_hat = self(y_observed, observed_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * val_mask
         # loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
@@ -309,7 +232,7 @@ class GraphTransformer(pl.LightningModule):
         y_observed = y * observed_mask
         y_target = y * eval_mask
 
-        adj = batch['adj']
+     
         
         if self.x_dim > 0:
             x = batch['x']
@@ -317,7 +240,7 @@ class GraphTransformer(pl.LightningModule):
             x = None
 
 
-        y_hat = self(y_observed, observed_mask, adj, x)
+        y_hat = self(y_observed, observed_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * eval_mask
         
@@ -355,3 +278,49 @@ class GraphTransformer(pl.LightningModule):
 
         return [optimizer], [scheduler]
 
+
+
+# class GraphConvLayer(nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super(GraphConvLayer, self).__init__()
+#         self.linear = nn.Linear(in_channels, out_channels)
+
+#     def forward(self, x, adj):
+#         # x: (B, K, L, D)
+#         # adj: (B, K, K)
+#         B, K, L, D = x.size()
+        
+        
+#         # Matrix multiplication over all temporal slices at once
+#         x = x.permute(0, 2, 1, 3)  # (B, L, K, D)
+#         x = torch.einsum('bkk,blkd->blkd', adj, x)  # (B, L, K, D)
+#         x = x.permute(0, 2, 1, 3)  # (B, K, L, D)
+        
+#         # Apply linear layer
+#         out = self.linear(x)
+        
+#         return out
+
+# class GCN(nn.Module):
+#     def __init__(self, in_channels, hidden_channels, out_channels):
+#         super(GCN, self).__init__()
+#         self.conv1 = GraphConvLayer(in_channels, hidden_channels)
+#         self.layer_norm1 = nn.LayerNorm(hidden_channels)
+#         self.relu = nn.ReLU()
+#         self.conv2 = GraphConvLayer(hidden_channels, out_channels)
+#         self.layer_norm2 = nn.LayerNorm(out_channels)
+
+
+#     def forward(self, x, adj):
+#         # x: (B, K, L, D)
+#         # adj: (B, K, K)
+#         B, K, L, D = x.size()
+        
+#         # Create the adjacency matrix for each batch element
+#         x = self.conv1(x, adj)
+#         x = self.layer_norm1(x)
+#         x = self.relu(x)
+#         x = self.conv2(x, adj)
+#         x = self.layer_norm2(x)
+#         return x
+    

@@ -5,3 +5,8 @@
 4- Finally, pip install torch_geometric, as recommended in 'https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html', because I use CPU, it will be different if u use GPU, CUDA, maybe, so, double check it.
 5- If u use jupyter lab, remenber pip install ipykernel to change your environment.
 
+
+# result
+airquality: 
+- ST-transformer+additional st covariates: 9.2
+- ST-transformer: 11.6

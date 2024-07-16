@@ -93,13 +93,21 @@ def generate_time_basis_functions(time_coords):
 
 
 
-class GraphTransformerDataset():
-    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio):
+class SpatialTemporalTransformerDataset():
+    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate=True):
         self.y = y.astype(np.float32)
         observed_mask = mask - eval_mask
-        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis='both')
+        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis='time')
         self.x = x.astype(np.float32) if x is not None else None
-        self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords)
+        self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords) if additional_st_covariate is True else None
+        
+        if self.x is not None and self.space_time_covariate is not None:
+            self.x = np.concatenate([self.x, self.space_time_covariate], axis=-1)
+        elif self.x is None and self.space_time_covariate is not None:
+            self.x = self.space_time_covariate
+
+
+
         self.mask = mask.astype(np.float32)
         self.eval_mask = eval_mask.astype(np.float32)
         self.space_coords = space_coords
@@ -113,6 +121,10 @@ class GraphTransformerDataset():
 
         observed_mask = mask - eval_mask
         self.val_mask = observed_mask * (np.random.rand(*mask.shape) < val_ratio).astype(np.float32)
+
+
+        self.graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
+
         self.load()
 
     
@@ -123,14 +135,12 @@ class GraphTransformerDataset():
         batch = {}
         batch['y'] = self.y_batch[idx].astype(np.float32)
         if self.x is not None:
-            batch['x'] = np.concatenate([self.x_batch[idx].astype(np.float32), self.space_time_covariate_batch[idx].astype(np.float32)], axis=-1)
-        else:
-            batch['x'] = self.space_time_covariate_batch[idx].astype(np.float32)
-
+            batch['x'] = self.x_batch[idx].astype(np.float32)
+        
         batch['mask'] = self.mask_batch[idx].astype(np.float32)
         batch['eval_mask'] = self.eval_mask_batch[idx].astype(np.float32)
         batch['val_mask'] = self.val_mask_batch[idx].astype(np.float32)
-        batch['adj'] = self.adj_batch[idx]
+        # batch['adj'] = self.adj_batch[idx]
         batch['mean'] = self.mean_batch[idx].astype(np.float32)
         batch['std'] = self.std_batch[idx].astype(np.float32)
         return batch
@@ -246,8 +256,6 @@ class GraphTransformerDataset():
         time_covariate = np.tile(time_covariate[np.newaxis, :, :], (K, 1, 1))
         space_time_covariate = np.concatenate([spatial_covariate, time_covariate], axis=-1)
 
-        
-
         return space_time_covariate
 
 
@@ -284,10 +292,10 @@ class GraphTransformerDataset():
     
 
     def load(self):
+        
+        graph_data = self.graph_data
 
         # partition space
-        graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
-
         if self.space_partitions_num > 1:
         
             cluster_data = ClusterData(graph_data, num_parts=self.space_partitions_num)  
@@ -300,7 +308,6 @@ class GraphTransformerDataset():
         y_partitions = []
         if self.x is not None:
             x_partitions = []
-        space_time_covariate_partitions = []
         mask_partitions = []
         eval_mask_partitions = []
         val_mask_partitions = []
@@ -313,7 +320,6 @@ class GraphTransformerDataset():
             y_partitions.append(self.y[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             if self.x is not None:
                 x_partitions.append(self.x[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
-            space_time_covariate_partitions.append(self.space_time_covariate[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
             mask_partitions.append(self.mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             eval_mask_partitions.append(self.eval_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             val_mask_partitions.append(self.val_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
@@ -322,19 +328,6 @@ class GraphTransformerDataset():
             mean_partitions.append(self.mean[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             std_partitions.append(self.std[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
 
-        self.y_partitions = y_partitions
-        if self.x is not None:
-            self.x_partitions = x_partitions
-    
-        
-        self.space_time_covariate_partitions = space_time_covariate_partitions
-        self.mask_partitions = mask_partitions
-        self.eval_mask_partitions = eval_mask_partitions
-        self.val_mask_partitions = val_mask_partitions
-        self.edge_index_partitions = edge_index_partitions
-        self.edge_weight_partitions = edge_weight_partitions
-        self.mean_partitions = mean_partitions
-        self.std_partitions = std_partitions
 
         max_y_len = max([len(y) for y in y_partitions])
 
@@ -342,22 +335,13 @@ class GraphTransformerDataset():
         y_padded = [np.pad(y, ((0, max_y_len - len(y)), (0, 0)), 'constant', constant_values=0) for y in y_partitions]        
         if self.x is not None:
             x_padded = [np.pad(x, ((0, max_y_len - x.shape[0]), (0, 0), (0, 0)), 'constant', constant_values=0) for x in x_partitions]
-        space_time_covariate_padded = [np.pad(stc, ((0, max_y_len - stc.shape[0]), (0, 0), (0, 0)), 'constant', constant_values=0) for stc in space_time_covariate_partitions]
         mask_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mask_partitions]
         eval_mask_padded = [np.pad(em, ((0, max_y_len - em.shape[0]), (0, 0)), 'constant', constant_values=0) for em in eval_mask_partitions]
         val_mask_padded = [np.pad(vm, ((0, max_y_len - vm.shape[0]), (0, 0)), 'constant', constant_values=0) for vm in val_mask_partitions]
         mean_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mean_partitions]
         std_padded = [np.pad(s, ((0, max_y_len - s.shape[0]), (0, 0)), 'constant', constant_values=1) for s in std_partitions]
 
-        self.y_padded = y_padded
-        if self.x is not None:
-            self.x_padded = x_padded
-        self.space_time_covariate_padded = space_time_covariate_padded
-        self.mask_padded = mask_padded
-        self.eval_mask_padded = eval_mask_padded
-        self.val_mask_padded = val_mask_padded
-        self.mean_padded = mean_padded
-        self.std_padded = std_padded
+     
 
         # partition time
         time_partitions = self.split_into_temporal_batches(
@@ -366,39 +350,30 @@ class GraphTransformerDataset():
             stride=self.stride
         )
 
-        self.time_partitions = time_partitions
-
-
 
         y_batch = [i[:, j] for j in time_partitions for i in y_padded]
         if self.x is not None:
             x_batch = [i[:, j, :] for j in time_partitions for i in x_padded]
-        space_time_covariate_batch = [i[:, j, :] for j in time_partitions for i in space_time_covariate_padded]
         mask_batch = [i[:, j] for j in time_partitions for i in mask_padded]
         eval_mask_batch = [i[:, j] for j in time_partitions for i in eval_mask_padded]
         val_mask_batch = [i[:, j] for j in time_partitions for i in val_mask_padded]
         mean_batch = [i[:, j] for j in time_partitions for i in mean_padded]
         std_batch = [i[:, j] for j in time_partitions for i in std_padded]
 
-        adj_batch = []
-        for i in range(self.space_partitions_num):
-            adj = self.edge_index_to_adj(self.edge_index_partitions[i], self.edge_weight_partitions[i], max_y_len)
-                    
-            deg = torch.sum(adj, dim=-1)  # (B, K)
-            deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
-        
-            adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
-            adj_batch.append(adj)
-        
-        self.adj_batch = [i for _ in time_partitions for i in adj_batch]
-    
+        # adj_batch = []
+        # for i in range(self.space_partitions_num):
+        #     adj = self.edge_index_to_adj(edge_index_partitions[i], edge_weight_partitions[i], max_y_len)     
+        #     deg = torch.sum(adj, dim=-1)  # (B, K)
+        #     deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
+        #     deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        #     deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
+        #     adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
+        #     adj_batch.append(adj)
+        # self.adj_batch = [i for _ in time_partitions for i in adj_batch]
 
         self.y_batch = y_batch
         if self.x is not None:
             self.x_batch = x_batch
-        self.space_time_covariate_batch = space_time_covariate_batch
         self.mask_batch = mask_batch
         self.eval_mask_batch = eval_mask_batch
         self.val_mask_batch = val_mask_batch
@@ -418,13 +393,21 @@ class GraphTransformerDataset():
         return adj
 
 
-class GraphTransformerDataModule(pl.LightningDataModule):
+
+    
+
+
+class SpatialTemporalTransformerDataModule(pl.LightningDataModule):
     def __init__(self, dataset, batch_size=32):
-        super(GraphTransformerDataModule, self).__init__()
+        super().__init__()
         self.dataset = dataset
         self.batch_size = batch_size
+
+    def on_train_epoch_start(self):
+        self.datamodule.dataset.load()
     
     def train_dataloader(self):
+        self.dataset.load()
         return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True)
     
     def val_dataloader(self):
@@ -432,6 +415,10 @@ class GraphTransformerDataModule(pl.LightningDataModule):
     
     def test_dataloader(self):
         return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
+    
+        
+    
+
     
 
 
@@ -567,10 +554,10 @@ def create_dnn_dataset(st_dataset, additional_st_covariate='coord', val_ratio=0.
     return train_dataset, val_dataset, test_dataset
 
 
-def create_graph_transformer_dataset(st_dataset, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio):
+def create_st_transformer_dataset(st_dataset, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates):
     y, x, mask, eval_mask, space_coords, time_coords = st_dataset.y, st_dataset.x, st_dataset.mask, st_dataset.eval_mask, st_dataset.space_coords, st_dataset.time_coords
 
-    dataset = GraphTransformerDataset(y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio)
+    dataset = SpatialTemporalTransformerDataset(y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates)
 
     return dataset
 
