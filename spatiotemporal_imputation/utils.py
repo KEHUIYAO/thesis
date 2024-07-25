@@ -94,10 +94,10 @@ def generate_time_basis_functions(time_coords):
 
 
 class SpatialTemporalTransformerDataset():
-    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate=True):
+    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate, normalization_axis):
         self.y = y.astype(np.float32)
         observed_mask = mask - eval_mask
-        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis='time')
+        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis=normalization_axis)
         self.x = x.astype(np.float32) if x is not None else None
         self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords) if additional_st_covariate is True else None
         
@@ -140,7 +140,7 @@ class SpatialTemporalTransformerDataset():
         batch['mask'] = self.mask_batch[idx].astype(np.float32)
         batch['eval_mask'] = self.eval_mask_batch[idx].astype(np.float32)
         batch['val_mask'] = self.val_mask_batch[idx].astype(np.float32)
-        # batch['adj'] = self.adj_batch[idx]
+        batch['adj'] = self.adj_batch[idx]
         batch['mean'] = self.mean_batch[idx].astype(np.float32)
         batch['std'] = self.std_batch[idx].astype(np.float32)
         return batch
@@ -211,6 +211,7 @@ class SpatialTemporalTransformerDataset():
 
     
     def create_graph(self, space_coords, sigma, epsilon):
+
         # Compute the pairwise distance matrix
         dist_matrix = distance_matrix(space_coords, space_coords)
 
@@ -359,17 +360,22 @@ class SpatialTemporalTransformerDataset():
         val_mask_batch = [i[:, j] for j in time_partitions for i in val_mask_padded]
         mean_batch = [i[:, j] for j in time_partitions for i in mean_padded]
         std_batch = [i[:, j] for j in time_partitions for i in std_padded]
+        edge_index_batch = [i for _ in time_partitions for i in edge_index_partitions]
+        edge_weight_batch = [i for _ in time_partitions for i in edge_weight_partitions]
+        self.edge_index_batch = edge_index_batch
+        self.edge_weight_batch = edge_weight_batch
 
-        # adj_batch = []
-        # for i in range(self.space_partitions_num):
-        #     adj = self.edge_index_to_adj(edge_index_partitions[i], edge_weight_partitions[i], max_y_len)     
-        #     deg = torch.sum(adj, dim=-1)  # (B, K)
-        #     deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
-        #     deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-        #     deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
-        #     adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
-        #     adj_batch.append(adj)
-        # self.adj_batch = [i for _ in time_partitions for i in adj_batch]
+        adj_batch = []
+        for i in range(self.space_partitions_num):
+            adj = self.edge_index_to_adj(edge_index_partitions[i], edge_weight_partitions[i], max_y_len)     
+            # deg = torch.sum(adj, dim=-1)  # (B, K)
+            # deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
+            # deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+            # deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
+            # adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
+            adj = torch.eye(max_y_len) + adj
+            adj_batch.append(adj)
+        self.adj_batch = [i for _ in time_partitions for i in adj_batch]
 
         self.y_batch = y_batch
         if self.x is not None:
@@ -389,8 +395,12 @@ class SpatialTemporalTransformerDataset():
         # edge_weight: (E)
         # num_nodes: K
         adj = torch.zeros((num_nodes, num_nodes))
-        adj[edge_index[0], edge_index[1]] = edge_weight
+        # adj[edge_index[0], edge_index[1]] = edge_weight
+        adj[edge_index[0], edge_index[1]] = 1
         return adj
+
+
+
 
 
 
@@ -419,6 +429,7 @@ class SpatialTemporalTransformerDataModule(pl.LightningDataModule):
         
     
 
+    
     
 
 
@@ -531,14 +542,9 @@ def convert_st_data_for_dnn_training(y, mask, eval_mask, x, space_coords, time_c
 
 
 
-def create_dnn_dataset(st_dataset, additional_st_covariate='coord', val_ratio=0.2, test_ratio=0.1):
+def create_dnn_dataset(st_dataset, additional_st_covariate='coord', val_ratio=0.2):
 
     y, x, mask, eval_mask, space_coords, time_coords = st_dataset.y, st_dataset.x, st_dataset.mask, st_dataset.eval_mask, st_dataset.space_coords, st_dataset.time_coords
-
-    if eval_mask is None:
-        # create a eval_mask based on test_ratio
-        eval_mask = (np.random.rand(*y.shape) < test_ratio).astype(int)
-        eval_mask = mask * eval_mask
 
 
     X_train, y_train, X_test, y_test = convert_st_data_for_dnn_training(y, mask, eval_mask, x, space_coords, time_coords, additional_st_covariate=additional_st_covariate)
@@ -554,10 +560,10 @@ def create_dnn_dataset(st_dataset, additional_st_covariate='coord', val_ratio=0.
     return train_dataset, val_dataset, test_dataset
 
 
-def create_st_transformer_dataset(st_dataset, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates):
+def create_st_transformer_dataset(st_dataset, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates, normalization_axis):
     y, x, mask, eval_mask, space_coords, time_coords = st_dataset.y, st_dataset.x, st_dataset.mask, st_dataset.eval_mask, st_dataset.space_coords, st_dataset.time_coords
 
-    dataset = SpatialTemporalTransformerDataset(y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates)
+    dataset = SpatialTemporalTransformerDataset(y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates, normalization_axis)
 
     return dataset
 

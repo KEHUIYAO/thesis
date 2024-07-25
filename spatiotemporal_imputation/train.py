@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import pytorch_lightning as pl
 from torch.utils.data import random_split
-from data import GP, KaustCompetition, SoilMoisture, AQ36
+from data import GP, KaustCompetition, SoilMoisture, AQ36, AQ
 import argparse
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, StochasticWeightAveraging
@@ -15,7 +15,7 @@ import yaml
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='st_transformer/air_quality_st_basis.yaml')
+    parser.add_argument("--config", type=str, default='st_transformer/aq_st_basis.yaml')
     args = parser.parse_args()
     config_file = './experiment/' + args.config
     with open(config_file, 'r') as fp:
@@ -35,11 +35,17 @@ def main(args):
         st_dataset = SoilMoisture()
     elif args.dataset == 'AirQuality':
         st_dataset = AQ36()
+    elif args.dataset == 'AQ':
+        st_dataset = AQ()
+    else:
+        raise ValueError('Invalid dataset name')
+    
+    
 
 
 
     if args.model == 'DNN':
-        train_dataset, val_dataset, test_dataset = create_dnn_dataset(st_dataset, additional_st_covariate=args.additional_st_covariate, val_ratio=args.val_ratio, test_ratio=args.test_ratio)
+        train_dataset, val_dataset, test_dataset = create_dnn_dataset(st_dataset, additional_st_covariate=args.additional_st_covariate, val_ratio=args.val_ratio)
 
         # datamodule
         dm = DataModule(train_dataset, val_dataset, test_dataset, batch_size=args.batch_size)
@@ -47,7 +53,7 @@ def main(args):
         # model
         model = DNN(input_dim=args.input_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, dropout_rate=args.dropout_rate, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
     elif args.model == 'DCN':
-        train_dataset, val_dataset, test_dataset = create_dnn_dataset(st_dataset, additional_st_covariate=args.additional_st_covariate, val_ratio=args.val_ratio, test_ratio=args.test_ratio)
+        train_dataset, val_dataset, test_dataset = create_dnn_dataset(st_dataset, additional_st_covariate=args.additional_st_covariate, val_ratio=args.val_ratio)
 
         # datamodule
         dm = DataModule(train_dataset, val_dataset, test_dataset, batch_size=args.batch_size)
@@ -56,7 +62,7 @@ def main(args):
         model = DCN(input_dim=args.input_dim, cross_num=args.cross_num, dnn_hidden_units=args.dnn_hidden_units, dnn_dropout=args.dnn_dropout, weight_decay=args.weight_decay, lr=args.lr, loss_func=args.loss_func)
     
     elif args.model == 'SpatialTemporalTransformer':
-        dataset = create_st_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio, args.additional_st_covariates)
+        dataset = create_st_transformer_dataset(st_dataset, args.space_sigma, args.space_threshold, args.space_partitions_num, args.window_size, args.stride, args.val_ratio, args.additional_st_covariates, args.normalization_axis)
         dm = SpatialTemporalTransformerDataModule(dataset, batch_size=args.batch_size)
         model = SpatialTemporalTransformer(y_dim=args.y_dim, x_dim=args.x_dim, hidden_dims=args.hidden_dims, output_dim=args.output_dim, ff_dim=args.ff_dim, n_heads=args.n_heads, n_layers=args.n_layers, dropout=args.dropout, lr=args.lr, weight_decay=args.weight_decay, whiten_prob=args.whiten_prob)
   

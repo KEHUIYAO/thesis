@@ -59,14 +59,23 @@ class DNN(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = self.loss_func(y_hat, y)
+
+        # rmse 
+        rmse = torch.sqrt(torch.nn.functional.mse_loss(y_hat, y))
+
         self.log('val_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_rmse', rmse, on_epoch=True, on_step=False, prog_bar=True)
         return loss
     
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         loss = self.loss_func(y_hat, y)
+
+        # rmse 
+        rmse = torch.sqrt(torch.nn.functional.mse_loss(y_hat, y))
         self.log('test_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('test_rmse', rmse, on_epoch=True, on_step=False, prog_bar=True)
         return loss
 
     

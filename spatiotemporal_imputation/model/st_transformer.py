@@ -33,7 +33,7 @@ class SpatialTemporalTransformerLayer(nn.Module):
         self.spatial_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
 
 
-    def forward(self, x):
+    def forward(self, x, adj):
         # x: (B, K, L, D)
         B, K, L, D = x.size()
         
@@ -45,7 +45,12 @@ class SpatialTemporalTransformerLayer(nn.Module):
         # Apply spatial transformer layer
         x = x.permute(0, 2, 1, 3)
         x = x.reshape(B*L, K, D)
-        x = self.spatial_transformer_layer(x)
+        # repeat (B, K, K) to be (B, L, K, K)
+        src_mask = 1 - adj.unsqueeze(1).repeat(1, L, 1, 1).reshape(B*L, K, K)
+        src_mask = src_mask.bool()
+        
+        x = self.spatial_transformer_layer(x, src_mask=src_mask)
+        # x = self.spatial_transformer_layer(x)
         x = x.reshape(B, L, K, D)
         x = x.permute(0, 2, 1, 3)
         
@@ -69,7 +74,8 @@ class SpatialTemporalTransformer(pl.LightningModule):
                  dropout,
                  lr=1e-3,
                  weight_decay=0.0,
-                 whiten_prob=[0.2, 0.5, 0.8]
+                 whiten_prob=[0.2, 0.5, 0.8],
+                 loss_func='mae'
                  ):
         super().__init__()
         self.x_dim = x_dim
@@ -77,6 +83,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         self.lr = lr
         self.weight_decay = weight_decay
         self.whiten_prob = whiten_prob
+        self.loss_func = loss_func
        
         self.y_enc = MLP(y_dim, hidden_dims, dropout=dropout)
         self.layer_norm_y = nn.LayerNorm(hidden_dims[-1])
@@ -96,10 +103,11 @@ class SpatialTemporalTransformer(pl.LightningModule):
         self.readout = MLP(hidden_dims[-1], hidden_dims + [output_dim], dropout=dropout)
                                     
             
-    def forward(self, y, mask, x):
+    def forward(self, y, mask, x, adj):
         # y: (B, K, L)
         # mask: (B, K, L)
         # x: (B, K, L, C)
+        # adj: (B, K, K)
 
         B, K, L = y.shape
         y = y * mask
@@ -122,7 +130,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         h = self.pe(h)  # (B, K, L, hidden_dims[-1])
 
         for layer in self.encoder_layers:
-            h = layer(h)
+            h = layer(h, adj)
 
         # Pass through the readout MLP
         x_hat = self.readout(h)  # (B, K, L, output_dim)
@@ -151,6 +159,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         y = batch['y']
+        adj = batch['adj']
         training_mask = batch['training_mask']
         target_mask = batch['target_mask']
 
@@ -166,7 +175,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed,training_mask, x)
+        y_hat = self(y_observed,training_mask, x, adj)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * target_mask
         # loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
@@ -184,6 +193,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         y = batch['y']
+        adj = batch['adj']
         mask = batch['mask']
         val_mask = batch['val_mask']
 
@@ -203,7 +213,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed, observed_mask, x)
+        y_hat = self(y_observed, observed_mask, x, adj)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * val_mask
         # loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
@@ -214,12 +224,16 @@ class SpatialTemporalTransformer(pl.LightningModule):
         y_target = y_target * std + mean
         loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
 
+        rmse = torch.sqrt(F.mse_loss(y_hat, y_target, reduction='sum') / val_mask.sum())
+
 
         self.log('val_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_rmse', rmse, on_epoch=True, on_step=False, prog_bar=True)
         return loss
     
     def test_step(self, batch, batch_idx):
         y = batch['y']
+        adj = batch['adj']
         mask = batch['mask']
         eval_mask = batch['eval_mask']
 
@@ -240,7 +254,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
             x = None
 
 
-        y_hat = self(y_observed, observed_mask, x)
+        y_hat = self(y_observed, observed_mask, x, adj)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * eval_mask
         
@@ -252,7 +266,10 @@ class SpatialTemporalTransformer(pl.LightningModule):
         y_target = y_target * std + mean
         loss = torch.abs(y_hat - y_target).sum() / eval_mask.sum()
 
+        rmse = torch.sqrt(F.mse_loss(y_hat, y_target, reduction='sum') / eval_mask.sum())
+
         self.log('test_loss', loss, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('test_rmse', rmse, on_epoch=True, on_step=False, prog_bar=True)
         return loss
         
     def configure_optimizers(self):

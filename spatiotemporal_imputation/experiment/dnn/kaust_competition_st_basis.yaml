@@ -1,7 +1,7 @@
 # config.yaml
 dataset: 'KaustCompetition'
 model: 'DNN'
-val_ratio: 0.2
+val_ratio: 0.1
 additional_st_covariate: 'st_basis'
 batch_size: 512
 input_dim: 357
@@ -12,4 +12,4 @@ lr: 0.001
 weight_decay: 0.0001
 max_epochs: 300
 dataset_index: 2
-loss_func: 'mae'
+loss_func: 'mse'

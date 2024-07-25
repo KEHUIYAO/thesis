@@ -5,7 +5,7 @@ batch_size: 16
 lr: 0.001
 weight_decay: 0.0
 max_epochs: 300
-space_sigma: 80
+space_sigma: 40
 space_threshold: 0.15
 space_partitions_num: 10
 window_size: 57
@@ -21,3 +21,4 @@ n_heads: 1
 n_layers: 4
 whiten_prob: [0.2, 0.5, 0.8]
 additional_st_covariates: True
+normalization_axis: 'time'
