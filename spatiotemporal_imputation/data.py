@@ -204,8 +204,8 @@ class AQ():
 
 
         y = df.values.T
-        mask = mask.values.T.astype(int)
-        eval_mask = eval_mask.values.T.astype(int)
+        mask = mask.T.astype(int)
+        eval_mask = eval_mask.T.astype(int)
 
         y[mask == 0] = np.nan
        
