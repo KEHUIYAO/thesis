@@ -204,9 +204,10 @@ class AQ():
 
 
         y = df.values.T
+        mask = mask.values.T.astype(int)
+        eval_mask = eval_mask.values.T.astype(int)
 
-        y[mask.T == 0] = np.nan
-        self.mask = mask
+        y[mask == 0] = np.nan
        
         time_coords = np.arange(0,y.shape[1])
 
