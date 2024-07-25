@@ -17,7 +17,8 @@ class GP():
         self.y, self.space_coords, self.time_coords = self.simulate()
         self.mask = np.where(~np.isnan(self.y), 1, 0)
         self.x = None
-        self.eval_mask = None
+        self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
+
         
 
        
@@ -182,7 +183,35 @@ class AQ36():
         return y, eval_mask, space_coords, time_coords
 
 
-   
+import os
+import pandas as pd
+
+class AQ():
+    def __init__(self):
+        self.y, self.eval_mask, self.space_coords, self.time_coords = self.load()
+        self.mask = np.where(~np.isnan(self.y), 1, 0)
+
+        self.y[self.mask == 0] = 0
+        self.x = None
+    
+    def load(self):
+        data = AirQuality(impute_nans=False, small=False)
+        df, mask, eval_mask, _ = data.load()
+        path = os.path.join(data.root_dir, 'full437.h5')
+        stations = pd.DataFrame(pd.read_hdf(path, 'stations'))
+        space_coords = stations.loc[:, ['latitude', 'longitude']].values
+        space_coords = (space_coords - space_coords.min(axis=0)) / (space_coords.max(axis=0) - space_coords.min(axis=0))
+
+
+        y = df.values.T
+
+        y[mask.T == 0] = np.nan
+        self.mask = mask
+       
+        time_coords = np.arange(0,y.shape[1])
+
+        return y, eval_mask, space_coords, time_coords
+
     
 
 if __name__ == "__main__":
