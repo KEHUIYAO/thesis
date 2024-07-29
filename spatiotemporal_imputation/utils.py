@@ -140,7 +140,8 @@ class SpatialTemporalTransformerDataset():
         batch['mask'] = self.mask_batch[idx].astype(np.float32)
         batch['eval_mask'] = self.eval_mask_batch[idx].astype(np.float32)
         batch['val_mask'] = self.val_mask_batch[idx].astype(np.float32)
-        batch['adj'] = self.adj_batch[idx]
+        batch['edge_index'] = self.edge_index_batch
+
         batch['mean'] = self.mean_batch[idx].astype(np.float32)
         batch['std'] = self.std_batch[idx].astype(np.float32)
         return batch
@@ -277,16 +278,17 @@ class SpatialTemporalTransformerDataset():
         list of lists: A list where each element is a list representing a batch of indexes.
         """
 
-        if (L - window_size) % stride != 0:
-            raise ValueError("The combination of L, window_size, and stride does not allow for a perfect tiling of the data.")
+        # if (L - window_size) % stride != 0:
+        #     raise ValueError("The combination of L, window_size, and stride does not allow for a perfect tiling of the data.")
             
 
         batches = []
         for i in range(0, L, stride):
-            batch = list(range(i, min(i + window_size, L + 1)))
-            batches.append(batch)
             if i + window_size >= L:
                 break
+            batch = list(range(i, i + window_size))
+            batches.append(batch)
+            
         
         return batches
 
@@ -294,55 +296,9 @@ class SpatialTemporalTransformerDataset():
 
     def load(self):
         
-        graph_data = self.graph_data
+      
+        self.edge_index_batch =  self.graph_data.edge_index
 
-        # partition space
-        if self.space_partitions_num > 1:
-        
-            cluster_data = ClusterData(graph_data, num_parts=self.space_partitions_num)  
-            # 1. Create subgraphs.
-            train_loader = ClusterLoader(cluster_data, batch_size=1, shuffle=True)  # 2. Stochastic partioning scheme.
-
-        else:
-            train_loader = iter([graph_data])
-
-        y_partitions = []
-        if self.x is not None:
-            x_partitions = []
-        mask_partitions = []
-        eval_mask_partitions = []
-        val_mask_partitions = []
-        edge_index_partitions = []
-        edge_weight_partitions = []
-        mean_partitions = []
-        std_partitions = []
-
-        for step, sub_data in enumerate(train_loader):
-            y_partitions.append(self.y[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-            if self.x is not None:
-                x_partitions.append(self.x[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
-            mask_partitions.append(self.mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-            eval_mask_partitions.append(self.eval_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-            val_mask_partitions.append(self.val_mask[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-            edge_index_partitions.append(sub_data.edge_index)
-            edge_weight_partitions.append(sub_data.edge_attr)
-            mean_partitions.append(self.mean[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-            std_partitions.append(self.std[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
-
-
-        max_y_len = max([len(y) for y in y_partitions])
-
-        # Pad each partition to the maximum size while preserving structure
-        y_padded = [np.pad(y, ((0, max_y_len - len(y)), (0, 0)), 'constant', constant_values=0) for y in y_partitions]        
-        if self.x is not None:
-            x_padded = [np.pad(x, ((0, max_y_len - x.shape[0]), (0, 0), (0, 0)), 'constant', constant_values=0) for x in x_partitions]
-        mask_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mask_partitions]
-        eval_mask_padded = [np.pad(em, ((0, max_y_len - em.shape[0]), (0, 0)), 'constant', constant_values=0) for em in eval_mask_partitions]
-        val_mask_padded = [np.pad(vm, ((0, max_y_len - vm.shape[0]), (0, 0)), 'constant', constant_values=0) for vm in val_mask_partitions]
-        mean_padded = [np.pad(m, ((0, max_y_len - m.shape[0]), (0, 0)), 'constant', constant_values=0) for m in mean_partitions]
-        std_padded = [np.pad(s, ((0, max_y_len - s.shape[0]), (0, 0)), 'constant', constant_values=1) for s in std_partitions]
-
-     
 
         # partition time
         time_partitions = self.split_into_temporal_batches(
@@ -352,31 +308,17 @@ class SpatialTemporalTransformerDataset():
         )
 
 
-        y_batch = [i[:, j] for j in time_partitions for i in y_padded]
+        y_batch = [self.y[:, j] for j in time_partitions]
         if self.x is not None:
-            x_batch = [i[:, j, :] for j in time_partitions for i in x_padded]
-        mask_batch = [i[:, j] for j in time_partitions for i in mask_padded]
-        eval_mask_batch = [i[:, j] for j in time_partitions for i in eval_mask_padded]
-        val_mask_batch = [i[:, j] for j in time_partitions for i in val_mask_padded]
-        mean_batch = [i[:, j] for j in time_partitions for i in mean_padded]
-        std_batch = [i[:, j] for j in time_partitions for i in std_padded]
-        edge_index_batch = [i for _ in time_partitions for i in edge_index_partitions]
-        edge_weight_batch = [i for _ in time_partitions for i in edge_weight_partitions]
-        self.edge_index_batch = edge_index_batch
-        self.edge_weight_batch = edge_weight_batch
+            x_batch = [self.x[:, j, :] for j in time_partitions]
+        mask_batch = [self.mask[:, j] for j in time_partitions]
+        eval_mask_batch = [self.eval_mask[:, j] for j in time_partitions]
+        val_mask_batch = [self.val_mask[:, j] for j in time_partitions]
+        mean_batch = [self.mean[:, j] for j in time_partitions]
+        std_batch = [self.std[:, j] for j in time_partitions]
 
-        adj_batch = []
-        for i in range(self.space_partitions_num):
-            adj = self.edge_index_to_adj(edge_index_partitions[i], edge_weight_partitions[i], max_y_len)     
-            # deg = torch.sum(adj, dim=-1)  # (B, K)
-            # deg_inv_sqrt = deg.pow(-0.5).unsqueeze(-1)  # (B, K, 1)
-            # deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            # deg_inv_sqrt_matrix = torch.diag_embed(deg_inv_sqrt.squeeze(-1))  # (B, K, K)
-            # adj = torch.eye(max_y_len) + torch.matmul(deg_inv_sqrt_matrix, torch.matmul(adj, deg_inv_sqrt_matrix))  # (B, K, K)
-            adj = torch.eye(max_y_len) + adj
-            adj_batch.append(adj)
-        self.adj_batch = [i for _ in time_partitions for i in adj_batch]
 
+       
         self.y_batch = y_batch
         if self.x is not None:
             self.x_batch = x_batch

@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torchvision.ops.misc import MLP
 from utils import CosineSchedulerWithRestarts
+from torch_geometric.nn.conv import GATConv
 
 
 
@@ -30,10 +31,10 @@ class SpatialTemporalTransformerLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward, dropout):
         super().__init__()
         self.temporal_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
-        self.spatial_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
+        self.spatial_transformer_layer = GATConv(d_model, d_model, heads=nhead, dropout=dropout)
 
 
-    def forward(self, x, adj):
+    def forward(self, x, edge_index):
         # x: (B, K, L, D)
         B, K, L, D = x.size()
         
@@ -43,18 +44,11 @@ class SpatialTemporalTransformerLayer(nn.Module):
         x = x.reshape(B, K, L, D)
         
         # Apply spatial transformer layer
-        x = x.permute(0, 2, 1, 3)
-        x = x.reshape(B*L, K, D)
-        # repeat (B, K, K) to be (B, L, K, K)
-        src_mask = 1 - adj.unsqueeze(1).repeat(1, L, 1, 1).reshape(B*L, K, K)
-        src_mask = src_mask.bool()
+        res = torch.zeros_like(x).to(x.device)
+        for l in range(L):
+            res[0, :, l, :] = self.spatial_transformer_layer(x[0, :, l, :], edge_index[0, :, :])
         
-        x = self.spatial_transformer_layer(x, src_mask=src_mask)
-        # x = self.spatial_transformer_layer(x)
-        x = x.reshape(B, L, K, D)
-        x = x.permute(0, 2, 1, 3)
-        
-        return x
+        return res
 
 
     
@@ -103,7 +97,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         self.readout = MLP(hidden_dims[-1], hidden_dims + [output_dim], dropout=dropout)
                                     
             
-    def forward(self, y, mask, x, adj):
+    def forward(self, y, mask, x, edge_index):
         # y: (B, K, L)
         # mask: (B, K, L)
         # x: (B, K, L, C)
@@ -130,7 +124,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         h = self.pe(h)  # (B, K, L, hidden_dims[-1])
 
         for layer in self.encoder_layers:
-            h = layer(h, adj)
+            h = layer(h, edge_index)
 
         # Pass through the readout MLP
         x_hat = self.readout(h)  # (B, K, L, output_dim)
@@ -159,7 +153,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
+        edge_index = batch['edge_index']
         training_mask = batch['training_mask']
         target_mask = batch['target_mask']
 
@@ -175,7 +169,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed,training_mask, x, adj)
+        y_hat = self(y_observed,training_mask, x, edge_index)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * target_mask
         # loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
@@ -193,7 +187,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
+        edge_index = batch['edge_index']
         mask = batch['mask']
         val_mask = batch['val_mask']
 
@@ -213,7 +207,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed, observed_mask, x, adj)
+        y_hat = self(y_observed, observed_mask, x, edge_index)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * val_mask
         # loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
@@ -233,7 +227,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
+        edge_index = batch['edge_index']
         mask = batch['mask']
         eval_mask = batch['eval_mask']
 
@@ -254,7 +248,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
             x = None
 
 
-        y_hat = self(y_observed, observed_mask, x, adj)
+        y_hat = self(y_observed, observed_mask, x, edge_index)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * eval_mask
         

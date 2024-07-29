@@ -15,7 +15,7 @@ import yaml
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default='st_transformer/aq_st_basis.yaml')
+    parser.add_argument("--config", type=str, default='st_transformer/air_quality_st_basis.yaml')
     args = parser.parse_args()
     config_file = './experiment/' + args.config
     with open(config_file, 'r') as fp:
@@ -82,7 +82,7 @@ def main(args):
 
     # Set up the trainer with the checkpoint callback
     if args.model == 'SpatialTemporalTransformer':
-        trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback, StochasticWeightAveraging(swa_lrs=1e-2)], reload_dataloaders_every_n_epochs=1, precision="16-mixed")
+        trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback, StochasticWeightAveraging(swa_lrs=1e-2)], reload_dataloaders_every_n_epochs=1, precision="16-mixed", accelerator='cpu')
     else:
         trainer = pl.Trainer(max_epochs=args.max_epochs, logger=logger, callbacks=[checkpoint_callback])
 
