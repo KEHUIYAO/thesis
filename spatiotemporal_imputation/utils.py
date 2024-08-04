@@ -13,6 +13,101 @@ import math
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
+
+def normalize(y, mask, axis):
+    if axis == 'space':
+        axis_index = 0
+    elif axis == 'time':
+        axis_index = 1
+    elif axis == 'both':
+        # Flatten the array for normalization across all values
+        y_flat = y.flatten()
+        mask_flat = mask.flatten()
+        
+        sum_y = np.sum(y_flat * mask_flat)
+        count_y = np.sum(mask_flat)
+        mean = sum_y / count_y
+        
+        sum_sq_diff = np.sum(((y_flat - mean) * mask_flat)**2)
+        std = np.sqrt(sum_sq_diff / count_y)
+        
+        if std == 0:
+            std = 1e-4
+        
+        normalized_y = (y_flat - mean) / std
+        normalized_y[~mask_flat] = 0
+        
+        mean_repeated = np.full(y.shape, mean)
+        std_repeated = np.full(y.shape, std)
+        
+        return normalized_y.reshape(y.shape), mean_repeated, std_repeated
+    else:
+        raise ValueError("axis must be 'space', 'time', or 'both'")
+    
+    # Compute the mean using sum and mask
+    sum_y = np.sum(y * mask, axis=axis_index)
+    count_y = np.sum(mask, axis=axis_index)
+    mean = sum_y / count_y
+    
+    # Reshape mean for broadcasting
+    mean = np.expand_dims(mean, axis=axis_index)
+    
+    # Compute the standard deviation using sum and mask
+    sum_sq_diff = np.sum(((y - mean) * mask)**2, axis=axis_index)
+    std = np.sqrt(sum_sq_diff / count_y)
+    
+    # Avoid division by zero by setting zero std to 1e-4
+    std[std == 0] = 1e-4
+    
+    # Reshape std for broadcasting
+    std = np.expand_dims(std, axis=axis_index)
+    
+    # Normalize the array along the specified axis
+    normalized_y = (y - mean) / std
+    
+    # Maintain the mask in the normalized array
+    normalized_y[mask==0] = 0
+    
+    # Repeat mean and std to match the shape of y
+    mean_repeated = np.repeat(mean, y.shape[axis_index], axis=axis_index)
+    std_repeated = np.repeat(std, y.shape[axis_index], axis=axis_index)
+    
+    # Return normalized array and normalization constants
+    return normalized_y, mean_repeated, std_repeated
+
+def pairwise_correlation(y, mask):
+    K, L = y.shape
+    correlation_matrix = np.zeros((K, K))
+
+    for i in range(K):
+        for j in range(i, K):
+            # Get the two spatial points and their corresponding masks
+            point1 = y[i]
+            point2 = y[j]
+            mask1 = mask[i]
+            mask2 = mask[j]
+
+            # Find indices where both points have observed values
+            valid_indices = np.where((mask1 == 1) & (mask2 == 1))[0]
+
+            # If there are enough valid points, calculate the correlation
+            if len(valid_indices) > 1:
+                valid_point1 = point1[valid_indices]
+                valid_point2 = point2[valid_indices]
+
+                # Calculate correlation
+                correlation = np.corrcoef(valid_point1, valid_point2)[0, 1]
+            else:
+                # Not enough data to calculate correlation
+                correlation = 0
+
+            # Store the correlation
+            correlation_matrix[i, j] = correlation
+            if i != j:
+                correlation_matrix[j, i] = correlation
+
+    return correlation_matrix
+
 def interpolate_missing_values(y_st, y_st_missing, mask_st):
     num_nodes, seq_len = y_st.shape
     for k in range(num_nodes):
@@ -97,7 +192,7 @@ class SpatialTemporalTransformerDataset():
     def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate, normalization_axis):
         self.y = y.astype(np.float32)
         observed_mask = mask - eval_mask
-        self.y, self.mean, self.std = self.normalize(self.y, observed_mask, axis=normalization_axis)
+        self.y, self.mean, self.std = normalize(self.y, observed_mask, axis=normalization_axis)
         self.x = x.astype(np.float32) if x is not None else None
         self.space_time_covariate = self.add_additional_space_time_covariate(space_coords, time_coords) if additional_st_covariate is True else None
         
@@ -123,7 +218,8 @@ class SpatialTemporalTransformerDataset():
         self.val_mask = observed_mask * (np.random.rand(*mask.shape) < val_ratio).astype(np.float32)
 
 
-        self.graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
+        # self.graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
+        self.graph_data = self.create_graph(self.space_coords, self.y, self.mask)
 
         self.load()
 
@@ -146,98 +242,79 @@ class SpatialTemporalTransformerDataset():
         return batch
     
 
+    # def create_graph(self, space_coords, sigma, epsilon):
 
-    def normalize(self, y, mask, axis):
-        if axis == 'space':
-            axis_index = 0
-        elif axis == 'time':
-            axis_index = 1
-        elif axis == 'both':
-            # Flatten the array for normalization across all values
-            y_flat = y.flatten()
-            mask_flat = mask.flatten()
-            
-            sum_y = np.sum(y_flat * mask_flat)
-            count_y = np.sum(mask_flat)
-            mean = sum_y / count_y
-            
-            sum_sq_diff = np.sum(((y_flat - mean) * mask_flat)**2)
-            std = np.sqrt(sum_sq_diff / count_y)
-            
-            if std == 0:
-                std = 1e-4
-            
-            normalized_y = (y_flat - mean) / std
-            normalized_y[~mask_flat] = 0
-            
-            mean_repeated = np.full(y.shape, mean)
-            std_repeated = np.full(y.shape, std)
-            
-            return normalized_y.reshape(y.shape), mean_repeated, std_repeated
-        else:
-            raise ValueError("axis must be 'space', 'time', or 'both'")
+    #     # Compute the pairwise distance matrix
+    #     dist_matrix = distance_matrix(space_coords, space_coords)
+
+    #     # Create an edge index and weight list
+    #     edge_index = []
+    #     edge_weights = []
+
+    #     for i in range(dist_matrix.shape[0]):
+    #         for j in range(i+1, dist_matrix.shape[1]):
+    #             weight = np.exp(-dist_matrix[i, j] / (sigma ** 2))
+    #             if weight >= epsilon:
+    #                 edge_index.append([i, j])
+    #                 edge_index.append([j, i])  # Add both directions for undirected graph
+    #                 edge_weights.append(weight)
+    #                 edge_weights.append(weight)
+
+    #     # Convert edge index and edge weights to tensors
+    #     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+    #     edge_weights = torch.tensor(edge_weights, dtype=torch.float)
+
+    #     # Create graph data object
+    #     node_indices = torch.arange(space_coords.shape[0], dtype=torch.float).view(-1, 1)
+    #     data = Data(x=node_indices, edge_index=edge_index, edge_attr=edge_weights)
         
-        # Compute the mean using sum and mask
-        sum_y = np.sum(y * mask, axis=axis_index)
-        count_y = np.sum(mask, axis=axis_index)
-        mean = sum_y / count_y
-        
-        # Reshape mean for broadcasting
-        mean = np.expand_dims(mean, axis=axis_index)
-        
-        # Compute the standard deviation using sum and mask
-        sum_sq_diff = np.sum(((y - mean) * mask)**2, axis=axis_index)
-        std = np.sqrt(sum_sq_diff / count_y)
-        
-        # Avoid division by zero by setting zero std to 1e-4
-        std[std == 0] = 1e-4
-        
-        # Reshape std for broadcasting
-        std = np.expand_dims(std, axis=axis_index)
-        
-        # Normalize the array along the specified axis
-        normalized_y = (y - mean) / std
-        
-        # Maintain the mask in the normalized array
-        normalized_y[~mask] = 0
-        
-        # Repeat mean and std to match the shape of y
-        mean_repeated = np.repeat(mean, y.shape[axis_index], axis=axis_index)
-        std_repeated = np.repeat(std, y.shape[axis_index], axis=axis_index)
-        
-        # Return normalized array and normalization constants
-        return normalized_y, mean_repeated, std_repeated
+    #     return data
 
 
-    
-    def create_graph(self, space_coords, sigma, epsilon):
-
+    def create_graph(self, space_coords, y, mask):
+        K = space_coords.shape[0]
+        edge_index = []
         # Compute the pairwise distance matrix
         dist_matrix = distance_matrix(space_coords, space_coords)
 
-        # Create an edge index and weight list
-        edge_index = []
-        edge_weights = []
+        
+        # for each location, add edges to the M nearest neighbors
+        M = 10
+        for i in range(K):
+            # find the K nearest neighbors
+            nearest_neighbors = np.argsort(dist_matrix[i, :])[:M]
+            for j in nearest_neighbors:
+                edge_index.append([i, j])
+                edge_index.append([j, i])
 
-        for i in range(dist_matrix.shape[0]):
-            for j in range(i+1, dist_matrix.shape[1]):
-                weight = np.exp(-dist_matrix[i, j] / (sigma ** 2))
-                if weight >= epsilon:
-                    edge_index.append([i, j])
-                    edge_index.append([j, i])  # Add both directions for undirected graph
-                    edge_weights.append(weight)
-                    edge_weights.append(weight)
+
+        # compute the pairwise correlation matrix, for each location, add edges to the locations with correlation > 0.5
+        correlation_matrix = pairwise_correlation(y, mask)
+
+        for i in range(K):
+            for j in range(i+1, K):
+                if np.abs(correlation_matrix[i, j]) > 0.8:
+                    if [i,j] not in edge_index:
+                        edge_index.append([i, j])
+                        edge_index.append([j, i])
+
+    
+        # remove duplicate edges
+        edge_index = list(set([tuple(i) for i in edge_index]))
+
+        # Create graph data object
+        edge_weights = [1 for _ in range(len(edge_index))]
+
 
         # Convert edge index and edge weights to tensors
         edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
         edge_weights = torch.tensor(edge_weights, dtype=torch.float)
 
-        # Create graph data object
         node_indices = torch.arange(space_coords.shape[0], dtype=torch.float).view(-1, 1)
-        data = Data(x=node_indices, edge_index=edge_index, edge_attr=edge_weights)
+
+        data = Data(x=node_indices, edge_index=edge_index)
         
         return data
-    
 
     def add_additional_space_time_covariate(self, space_coords, time_coords):
         K = len(space_coords)
