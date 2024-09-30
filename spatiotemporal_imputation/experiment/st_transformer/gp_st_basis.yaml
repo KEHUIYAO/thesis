@@ -1,24 +1,26 @@
 # config.yaml
-dataset: 'AQ'
+dataset: 'GP'
 model: 'SpatialTemporalTransformer'
-batch_size: 16
+num_nodes: 100
+seq_len: 500
+batch_size: 4
 lr: 0.001
 weight_decay: 0.0
 max_epochs: 300
-correlation_threshold: 0.5
-space_partitions_num: 5
-window_size: 30
+correlation_threshold: 0.8
+space_partitions_num: 1
+window_size: 10
 stride: 10
-val_ratio: 0.2
+val_ratio: 0.1
 dropout: 0.0
 y_dim: 1
 x_dim: 357
-hidden_dims: [64, 64]
+hidden_dims: [100, 100]
 output_dim: 1
-ff_dim: 64
+ff_dim: 100
 n_heads: 1
 n_layers: 4
 whiten_prob: [0.2, 0.5, 0.8]
 additional_st_covariates: True
-normalization_axis: 'time'
-training_strategy: 'rst'
+normalization_axis: 'both'
+training_strategy: 'rt'

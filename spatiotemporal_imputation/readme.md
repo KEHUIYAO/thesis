@@ -10,3 +10,30 @@
 airquality: 
 - ST-transformer+additional st covariates: 9.2
 - ST-transformer: 11.6
+
+soil moisture
+DNN: 0.031
+
+kaust competition
+ST-transformer
+1: 0.66
+2: 0.21
+3: 0.07
+4. 0.59
+5. 0.21
+6. 0.07
+7. 0.59
+8. 0.78
+9. 0.56
+
+
+DNN:
+1. 0.65
+2. 0.26
+3. 0.05
+4. 0.59
+5. 0.270
+6. 0.05
+7. 0.66
+8. 0.91
+9. 0.72

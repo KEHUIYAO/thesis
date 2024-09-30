@@ -5,8 +5,7 @@ batch_size: 16
 lr: 0.001
 weight_decay: 0.0
 max_epochs: 300
-space_sigma: 40
-space_threshold: 0.15
+correlation_threshold: 0.5
 space_partitions_num: 10
 window_size: 57
 stride: 50
@@ -14,6 +13,7 @@ val_ratio: 0.1
 dropout: 0.0
 y_dim: 1
 x_dim: 369
+# x_dim: 239
 hidden_dims: [64, 64]
 output_dim: 1
 ff_dim: 64
@@ -22,3 +22,4 @@ n_layers: 4
 whiten_prob: [0.2, 0.5, 0.8]
 additional_st_covariates: True
 normalization_axis: 'time'
+training_strategy: 'rt'

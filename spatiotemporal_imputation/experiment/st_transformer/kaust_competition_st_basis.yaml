@@ -1,14 +1,13 @@
 # config.yaml
 dataset: 'KaustCompetition'
-dataset_index: 2
+dataset_index: 7
 model: 'SpatialTemporalTransformer'
 batch_size: 4
 lr: 0.001
 weight_decay: 0.0
 max_epochs: 300
-space_sigma: 0.2
-space_threshold: 0.1
-space_partitions_num: 10
+correlation_threshold: 0.5
+space_partitions_num: 50
 window_size: 10
 stride: 10
 val_ratio: 0.1
@@ -23,3 +22,4 @@ n_layers: 4
 whiten_prob: [0.2, 0.5, 0.8]
 additional_st_covariates: True
 normalization_axis: 'both'
+training_strategy: 'rt'

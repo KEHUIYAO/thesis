@@ -35,7 +35,6 @@ def normalize(y, mask, axis):
             std = 1e-4
         
         normalized_y = (y_flat - mean) / std
-        normalized_y[~mask_flat] = 0
         
         mean_repeated = np.full(y.shape, mean)
         std_repeated = np.full(y.shape, std)
@@ -64,9 +63,6 @@ def normalize(y, mask, axis):
     
     # Normalize the array along the specified axis
     normalized_y = (y - mean) / std
-    
-    # Maintain the mask in the normalized array
-    normalized_y[mask==0] = 0
     
     # Repeat mean and std to match the shape of y
     mean_repeated = np.repeat(mean, y.shape[axis_index], axis=axis_index)
@@ -189,7 +185,7 @@ def generate_time_basis_functions(time_coords):
 
 
 class SpatialTemporalTransformerDataset():
-    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate, normalization_axis):
+    def __init__(self, y, x, mask, eval_mask, space_coords, time_coords, correlation_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariate, normalization_axis, training_strategy):
         self.y = y.astype(np.float32)
         observed_mask = mask - eval_mask
         self.y, self.mean, self.std = normalize(self.y, observed_mask, axis=normalization_axis)
@@ -207,19 +203,28 @@ class SpatialTemporalTransformerDataset():
         self.eval_mask = eval_mask.astype(np.float32)
         self.space_coords = space_coords
         self.time_coords = time_coords
-        self.space_sigma = space_sigma
-        self.space_threshold = space_threshold
+        self.correlation_threshold = correlation_threshold
+
         self.space_partitions_num = space_partitions_num
         self.window_size = window_size
         self.stride = stride
         self.val_ratio = val_ratio
+        self.training_strategy = training_strategy
 
         observed_mask = mask - eval_mask
-        self.val_mask = observed_mask * (np.random.rand(*mask.shape) < val_ratio).astype(np.float32)
 
+        K, L = mask.shape
+
+        if training_strategy == 'rst':
+            self.val_mask = observed_mask * (np.random.rand(*mask.shape) < val_ratio).astype(np.float32)
+        elif training_strategy == 'rs':
+            self.val_mask = observed_mask * (np.repeat(np.random.rand(K, 1), L, axis=1) < val_ratio).astype(np.float32)
+        elif training_strategy == 'rt':
+            self.val_mask = observed_mask * (np.repeat(np.random.rand(1, L), K, axis=0) < val_ratio).astype(np.float32)
+            
 
         # self.graph_data = self.create_graph(self.space_coords, self.space_sigma, self.space_threshold)
-        self.graph_data = self.create_graph(self.space_coords, self.y, self.mask)
+        self.graph_data = self.create_graph(self.space_coords, self.y, observed_mask)
 
         self.load()
 
@@ -274,10 +279,9 @@ class SpatialTemporalTransformerDataset():
     def create_graph(self, space_coords, y, mask):
         K = space_coords.shape[0]
         edge_index = []
+
         # Compute the pairwise distance matrix
         dist_matrix = distance_matrix(space_coords, space_coords)
-
-        
         # for each location, add edges to the M nearest neighbors
         M = 10
         for i in range(K):
@@ -293,10 +297,16 @@ class SpatialTemporalTransformerDataset():
 
         for i in range(K):
             for j in range(i+1, K):
-                if np.abs(correlation_matrix[i, j]) > 0.8:
-                    if [i,j] not in edge_index:
-                        edge_index.append([i, j])
-                        edge_index.append([j, i])
+                if np.abs(correlation_matrix[i, j]) > self.correlation_threshold:
+                    edge_index.append([i, j])
+                    edge_index.append([j, i])
+
+        # # if location i has corrrelation 0 with all other locations, add edge to the all other locations
+        # for i in range(K):
+        #     if np.all(np.abs(correlation_matrix[i, :]) == 0):
+        #         for j in range(i+1, K):
+        #             edge_index.append([i, j])
+        #             edge_index.append([j, i])
 
     
         # remove duplicate edges
@@ -335,6 +345,7 @@ class SpatialTemporalTransformerDataset():
         space_time_covariate = np.concatenate([spatial_covariate, time_covariate], axis=-1)
 
         return space_time_covariate
+
 
 
 
@@ -384,6 +395,7 @@ class SpatialTemporalTransformerDataset():
             train_loader = iter([graph_data])
 
         y_partitions = []
+        self.spatial_partitions = []
         if self.x is not None:
             x_partitions = []
         mask_partitions = []
@@ -395,6 +407,7 @@ class SpatialTemporalTransformerDataset():
         std_partitions = []
 
         for step, sub_data in enumerate(train_loader):
+            self.spatial_partitions.append(sub_data.x.squeeze().cpu().numpy().astype('int'))
             y_partitions.append(self.y[sub_data.x.squeeze().cpu().numpy().astype('int'), :])
             if self.x is not None:
                 x_partitions.append(self.x[sub_data.x.squeeze().cpu().numpy().astype('int'), :, :])
@@ -427,6 +440,8 @@ class SpatialTemporalTransformerDataset():
             window_size=self.window_size,
             stride=self.stride
         )
+
+        self.time_partitions = time_partitions
 
 
         y_batch = [i[:, j] for j in time_partitions for i in y_padded]
@@ -637,12 +652,6 @@ def create_dnn_dataset(st_dataset, additional_st_covariate='coord', val_ratio=0.
     return train_dataset, val_dataset, test_dataset
 
 
-def create_st_transformer_dataset(st_dataset, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates, normalization_axis):
-    y, x, mask, eval_mask, space_coords, time_coords = st_dataset.y, st_dataset.x, st_dataset.mask, st_dataset.eval_mask, st_dataset.space_coords, st_dataset.time_coords
-
-    dataset = SpatialTemporalTransformerDataset(y, x, mask, eval_mask, space_coords, time_coords, space_sigma, space_threshold, space_partitions_num, window_size, stride, val_ratio, additional_st_covariates, normalization_axis)
-
-    return dataset
 
 
 

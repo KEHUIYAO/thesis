@@ -17,7 +17,11 @@ class GP():
         self.y, self.space_coords, self.time_coords = self.simulate()
         self.mask = np.where(~np.isnan(self.y), 1, 0)
         self.x = None
-        self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
+        # self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
+         # missing completely at some time points
+        K, L = self.y.shape
+        p = 0.1
+        self.eval_mask = (np.repeat(np.random.rand(1, L), K, axis=0) < p).astype(np.float32)
 
         
 
@@ -40,6 +44,12 @@ class GP():
 
         time_coords = np.arange(0, seq_len)
         space_coords = np.random.rand(num_nodes, 2)
+        
+        for i in range(num_nodes):
+            space_coords[i, :] = i / num_nodes
+        
+        
+
         
 
         # create the temporal covariance matrix
@@ -66,7 +76,7 @@ class GP():
 
 
 class KaustCompetition():
-    def __init__(self, dataset_index=1):
+    def __init__(self, dataset_index=3):
         self.y, self.eval_mask, self.space_coords, self.time_coords = self.load(dataset_index)
         self.mask = np.where(~np.isnan(self.y), 1, 0)
         self.x = None
@@ -101,6 +111,12 @@ class KaustCompetition():
         y = y.reshape(len(space_coords), len(time_coords))
         eval_mask = eval_mask.reshape(len(space_coords), len(time_coords))
 
+        # missing completely at some time points
+        K, L = y.shape
+        p = 0.1
+        eval_mask = (np.repeat(np.random.rand(1, L), K, axis=0) < p).astype(np.float32)
+
+
         return y, eval_mask, space_coords, time_coords
 
 
@@ -112,7 +128,23 @@ class SoilMoisture():
         self.y, self.x, self.space_coords, self.time_coords = self.load(date_start, date_end)
         self.mask = np.where(~np.isnan(self.y), 1, 0)
         self.y[self.mask == 0] = 0
-        self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
+        # self.eval_mask = self.mask * np.random.choice([0, 1], size=self.y.shape, p=[0.8, 0.2])
+
+
+        # Select p percent of spatial locations and whiten all temporal points
+        K, L = self.y.shape
+        p = 0.2
+
+        # Calculate the number of locations to whiten (p percent of L)
+        num_time_points_to_whiten = int(L * p) 
+        selected_time_points = np.random.choice(L, num_time_points_to_whiten, replace=False)
+        eval_mask = np.zeros((K, L))
+        eval_mask[:, selected_time_points] = 1.0
+        self.eval_mask = self.mask * eval_mask
+
+        
+
+
 
     
     def load(self, date_start, date_end):
@@ -183,8 +215,6 @@ class AQ36():
         return y, eval_mask, space_coords, time_coords
 
 
-import os
-import pandas as pd
 
 class AQ():
     def __init__(self):

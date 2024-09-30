@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 from torchvision.ops.misc import MLP
 from utils import CosineSchedulerWithRestarts
+import random
 
 
 
@@ -33,7 +34,7 @@ class SpatialTemporalTransformerLayer(nn.Module):
         self.spatial_transformer_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout, batch_first=True, norm_first=True, activation='gelu')
 
 
-    def forward(self, x, adj):
+    def forward(self, x):
         # x: (B, K, L, D)
         B, K, L, D = x.size()
         
@@ -45,12 +46,9 @@ class SpatialTemporalTransformerLayer(nn.Module):
         # Apply spatial transformer layer
         x = x.permute(0, 2, 1, 3)
         x = x.reshape(B*L, K, D)
-        # repeat (B, K, K) to be (B, L, K, K)
-        src_mask = 1 - adj.unsqueeze(1).repeat(1, L, 1, 1).reshape(B*L, K, K)
-        src_mask = src_mask.bool()
-        
-        x = self.spatial_transformer_layer(x, src_mask=src_mask)
-        # x = self.spatial_transformer_layer(x)
+
+
+        x = self.spatial_transformer_layer(x)
         x = x.reshape(B, L, K, D)
         x = x.permute(0, 2, 1, 3)
         
@@ -75,7 +73,8 @@ class SpatialTemporalTransformer(pl.LightningModule):
                  lr=1e-3,
                  weight_decay=0.0,
                  whiten_prob=[0.2, 0.5, 0.8],
-                 loss_func='mae'
+                 loss_func='mae',
+                 training_strategy='rst'
                  ):
         super().__init__()
         self.x_dim = x_dim
@@ -84,6 +83,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         self.weight_decay = weight_decay
         self.whiten_prob = whiten_prob
         self.loss_func = loss_func
+        self.training_strategy = training_strategy
        
         self.y_enc = MLP(y_dim, hidden_dims, dropout=dropout)
         self.layer_norm_y = nn.LayerNorm(hidden_dims[-1])
@@ -103,11 +103,11 @@ class SpatialTemporalTransformer(pl.LightningModule):
         self.readout = MLP(hidden_dims[-1], hidden_dims + [output_dim], dropout=dropout)
                                     
             
-    def forward(self, y, mask, x, adj):
+    def forward(self, y, mask, x):
         # y: (B, K, L)
         # mask: (B, K, L)
         # x: (B, K, L, C)
-        # adj: (B, K, K)
+
 
         B, K, L = y.shape
         y = y * mask
@@ -130,7 +130,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         h = self.pe(h)  # (B, K, L, hidden_dims[-1])
 
         for layer in self.encoder_layers:
-            h = layer(h, adj)
+            h = layer(h)
 
         # Pass through the readout MLP
         x_hat = self.readout(h)  # (B, K, L, output_dim)
@@ -147,8 +147,26 @@ class SpatialTemporalTransformer(pl.LightningModule):
 
         p = p[torch.randint(len(p), p_size)].to(device=mask.device)
 
-        whiten_mask = torch.rand(mask.size(), device=mask.device) < p
-        whiten_mask = whiten_mask.float()
+        
+        if self.training_strategy == 'rst':
+            whiten_mask = torch.rand(mask.size(), device=mask.device) < p
+            whiten_mask = whiten_mask.float()
+        elif self.training_strategy == 'rt':
+            B, K, L = mask.size()
+            whiten_mask = torch.rand((B, 1, L), device=mask.device)
+            # repeat along the second dimension
+            whiten_mask = whiten_mask.repeat(1, K, 1)
+            whiten_mask = whiten_mask < p
+            whiten_mask = whiten_mask.float()
+        elif self.training_strategy == 'rs':
+            B, K, L = mask.size()
+            whiten_mask = torch.rand((B, K, 1), device=mask.device)
+            whiten_mask = whiten_mask.repeat(1, 1, L)
+            whiten_mask = whiten_mask < p
+            whiten_mask = whiten_mask.float()
+
+
+        
         batch['training_mask'] = observed_mask * (1 - whiten_mask)
         batch['target_mask'] = observed_mask * whiten_mask
 
@@ -159,7 +177,6 @@ class SpatialTemporalTransformer(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
         training_mask = batch['training_mask']
         target_mask = batch['target_mask']
 
@@ -175,7 +192,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed,training_mask, x, adj)
+        y_hat = self(y_observed,training_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * target_mask
         # loss = torch.abs(y_hat - y_target).sum() / target_mask.sum()
@@ -193,7 +210,6 @@ class SpatialTemporalTransformer(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
         mask = batch['mask']
         val_mask = batch['val_mask']
 
@@ -213,7 +229,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
         else:
             x = None
 
-        y_hat = self(y_observed, observed_mask, x, adj)
+        y_hat = self(y_observed, observed_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * val_mask
         # loss = torch.abs(y_hat - y_target).sum() / val_mask.sum()
@@ -233,7 +249,6 @@ class SpatialTemporalTransformer(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         y = batch['y']
-        adj = batch['adj']
         mask = batch['mask']
         eval_mask = batch['eval_mask']
 
@@ -254,7 +269,7 @@ class SpatialTemporalTransformer(pl.LightningModule):
             x = None
 
 
-        y_hat = self(y_observed, observed_mask, x, adj)
+        y_hat = self(y_observed, observed_mask, x)
         y_hat = y_hat.squeeze(-1)
         y_hat = y_hat * eval_mask
         
@@ -297,47 +312,4 @@ class SpatialTemporalTransformer(pl.LightningModule):
 
 
 
-# class GraphConvLayer(nn.Module):
-#     def __init__(self, in_channels, out_channels):
-#         super(GraphConvLayer, self).__init__()
-#         self.linear = nn.Linear(in_channels, out_channels)
 
-#     def forward(self, x, adj):
-#         # x: (B, K, L, D)
-#         # adj: (B, K, K)
-#         B, K, L, D = x.size()
-        
-        
-#         # Matrix multiplication over all temporal slices at once
-#         x = x.permute(0, 2, 1, 3)  # (B, L, K, D)
-#         x = torch.einsum('bkk,blkd->blkd', adj, x)  # (B, L, K, D)
-#         x = x.permute(0, 2, 1, 3)  # (B, K, L, D)
-        
-#         # Apply linear layer
-#         out = self.linear(x)
-        
-#         return out
-
-# class GCN(nn.Module):
-#     def __init__(self, in_channels, hidden_channels, out_channels):
-#         super(GCN, self).__init__()
-#         self.conv1 = GraphConvLayer(in_channels, hidden_channels)
-#         self.layer_norm1 = nn.LayerNorm(hidden_channels)
-#         self.relu = nn.ReLU()
-#         self.conv2 = GraphConvLayer(hidden_channels, out_channels)
-#         self.layer_norm2 = nn.LayerNorm(out_channels)
-
-
-#     def forward(self, x, adj):
-#         # x: (B, K, L, D)
-#         # adj: (B, K, K)
-#         B, K, L, D = x.size()
-        
-#         # Create the adjacency matrix for each batch element
-#         x = self.conv1(x, adj)
-#         x = self.layer_norm1(x)
-#         x = self.relu(x)
-#         x = self.conv2(x, adj)
-#         x = self.layer_norm2(x)
-#         return x
-    

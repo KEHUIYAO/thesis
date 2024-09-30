@@ -5,8 +5,7 @@ batch_size: 16
 lr: 0.001
 weight_decay: 0.0
 max_epochs: 300
-space_sigma: 1
-space_threshold: 0.1
+correlation_threshold: 0.5
 space_partitions_num: 1
 window_size: 35
 stride: 2
@@ -22,3 +21,4 @@ n_layers: 4
 whiten_prob: [0.2, 0.5, 0.8]
 additional_st_covariates: False
 normalization_axis: 'time'
+training_strategy: 'rst'
